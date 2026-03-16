@@ -5,11 +5,14 @@ class_name LineupUI
 const GRID_SIZE: int = 3  # 3x3九宫格
 const MAX_POSITION: int = GRID_SIZE * GRID_SIZE  # 9个位置
 
-# 节点引用 - 路径和scene对应
-@onready var grid: GridContainer = $GridContainer
-@onready var hero_list: VBoxContainer = $HeroList/ScrollContainer/VBoxContainer
-@onready var save_button: Button = $SaveButton
-@onready var bond_details: Label = $BondInfo/BondDetails
+# 信号
+signal back_requested # 点击返回按钮发送
+
+# 节点引用 - 懒加载获取
+var grid: GridContainer = null
+var hero_list: VBoxContainer = null
+var save_button: Button = null
+var bond_details: Label = null
 
 # 当前阵容：数组长度为9，元素为武将ID，空位为null
 var current_lineup: Array = []
@@ -19,22 +22,60 @@ var selected_hero_id: String = ""
 var grid_cells: Array = []
 
 func _ready():
+	# 打印所有子节点，方便调试
+	print("LineupUI 所有子节点:")
+	for child in get_children():
+		print("  - ", child.name)
+	
+	# 获取节点引用 - 路径根据实际节点名称调整
+	grid = get_node_or_null("GridContainer")
+	hero_list = get_node_or_null("ScrollContainer#VBoxContainer")
+	save_button = get_node_or_null("SaveButton")
+	bond_details = get_node_or_null("BondInfo#BondDetails")
+	
+	if not grid:
+		print("LineupUI: 找不到GridContainer节点")
+	if not hero_list:
+		print("LineupUI: 找不到ScrollContainer#VBoxContainer节点")
+	if not save_button:
+		print("LineupUI: 找不到SaveButton节点")
+	if not bond_details:
+		print("LineupUI: 找不到BondInfo#BondDetails节点")
+	
 	# 初始化阵容数组
 	current_lineup.resize(MAX_POSITION)
 	current_lineup.fill(null)
 	
 	# 创建九宫格
-	create_grid()
+	if grid:
+		create_grid()
 	# 加载武将列表
-	load_hero_list()
+	if hero_list:
+		load_hero_list()
 	# 加载保存的阵容
 	load_lineup()
 	
 	# 更新羁绊显示
-	update_bond_display()
+	if bond_details:
+		update_bond_display()
 	
 	# 连接信号
-	save_button.connect("pressed", Callable(self, "save_lineup"))
+	if save_button:
+		save_button.connect("pressed", Callable(self, "save_lineup"))
+	
+	# 连接返回按钮
+	var back_btn = get_node_or_null("BackButton")
+	if back_btn:
+		back_btn.connect("pressed", Callable(self, "_on_back_clicked"))
+
+func _on_back_clicked():
+	back_requested.emit()
+
+# 监听ESC快捷键返回
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			_on_back_clicked()
 
 # 创建九宫格
 func create_grid():
@@ -54,7 +95,6 @@ func create_grid():
 func load_hero_list():
 	# 清空现有列表
 	if not hero_list:
-		print("LineupUI: hero_list节点为空")
 		return
 	
 	for child in hero_list.get_children():
@@ -62,6 +102,7 @@ func load_hero_list():
 	
 	# 获取所有已拥有的武将
 	var owned_heroes = HeroLibrary.instance.get_hero_list()
+	print("LineupUI: 加载", owned_heroes.size(), "个已拥有武将")
 	
 	for hero_id in owned_heroes:
 		var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
@@ -82,6 +123,9 @@ func _on_cell_pressed(position: int):
 	if selected_hero_id == "":
 		return
 	
+	if not grid_cells[position]:
+		return
+	
 	# 检查是否已经在阵容中
 	if current_lineup.find(selected_hero_id) != -1:
 		print("LineupUI: 该武将已经在阵容中")
@@ -90,11 +134,15 @@ func _on_cell_pressed(position: int):
 	# 放置武将
 	current_lineup[position] = selected_hero_id
 	update_grid_cell(position)
-	update_bond_display()
+	if bond_details:
+		update_bond_display()
 
 # 更新格子显示
 func update_grid_cell(position: int):
 	if position < 0 or position >= MAX_POSITION:
+		return
+	
+	if not grid_cells[position]:
 		return
 	
 	var cell = grid_cells[position]
@@ -143,7 +191,7 @@ func get_total_combat_power() -> float:
 	for hero_id in current_lineup:
 		if hero_id:
 			var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
-			# 战力计算：武力*0.4 + 智力*0.3 + 政治*0.2 + 魅力*0.1
+			# 战力计算：攻击*0.4 + 防御*0.3
 			var power = hero_data.get("attack", 0) * 0.4 + \
 						hero_data.get("defense", 0) * 0.3
 			total += power * (1 + hero_data.get("rarity", 1) * 0.2)  # 稀有度加成
@@ -169,6 +217,9 @@ func get_heroes_by_faction() -> Dictionary:
 
 # 更新羁绊显示
 func update_bond_display():
+	if not bond_details:
+		return
+	
 	# 获取势力统计
 	var factions = get_heroes_by_faction()
 	var active_bonds = BondManager.instance.get_active_bonds(factions)
@@ -187,4 +238,5 @@ func update_bond_display():
 
 # 刷新武将列表（武将库变化时调用）
 func refresh_hero_list():
-	load_hero_list()
+	if hero_list:
+		load_hero_list()

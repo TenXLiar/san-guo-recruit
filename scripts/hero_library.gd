@@ -62,7 +62,7 @@ func has_hero(hero_id: String) -> bool:
 	return owned_heroes.has(hero_id) and owned_heroes[hero_id]
 
 # 获取所有已拥有武将的ID列表
-func get_hero_list() -> Array[String]:
+func get_hero_list() -> Array:
 	return owned_heroes.keys().filter(func(id): return owned_heroes[id])
 
 # 获取武将碎片数量

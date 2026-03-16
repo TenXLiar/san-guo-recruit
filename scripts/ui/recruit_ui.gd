@@ -3,6 +3,7 @@ class_name RecruitUI
 
 # 信号
 signal recruit_requested # 点击招募按钮时发送信号
+signal back_requested # 点击返回按钮时发送信号
 
 func _ready():
 	# 让根节点也接收鼠标点击
@@ -16,6 +17,11 @@ func _ready():
 		btn.connect("pressed", Callable(self, "_on_recruit_clicked"))
 	else:
 		print("RecruitUI: 找不到RecruitButton节点！")
+	
+	# 连接返回按钮
+	var back_btn = get_node_or_null("BackButton")
+	if back_btn:
+		back_btn.connect("pressed", Callable(self, "_on_back_clicked"))
 
 func _on_input_event(event: InputEvent) -> void:
 	# 如果点击鼠标，也触发招募（备用方案）
@@ -26,6 +32,15 @@ func _on_input_event(event: InputEvent) -> void:
 func _on_recruit_clicked():
 	print("RecruitUI: 招募按钮被点击了，发送recruit_requested信号")
 	recruit_requested.emit()
+
+func _on_back_clicked():
+	back_requested.emit()
+
+# 监听ESC快捷键返回
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			_on_back_clicked()
 
 # 显示国运不足提示
 func show_gdp_not_enough():

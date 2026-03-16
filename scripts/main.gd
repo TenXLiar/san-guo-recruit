@@ -160,10 +160,15 @@ func _on_nav_button_pressed(button_name: String):
 	if current_ui != null:
 		current_ui.queue_free()
 	
+	# 进入子界面时隐藏底部导航
+	nav_buttons.visible = false
+	
 	# 加载新UI
 	match button_name:
 		"HomeButton":
 			current_ui = home_scene.instantiate()
+			# 回到主页显示底部导航
+			nav_buttons.visible = true
 			# 更新武将数量
 			var total = WHITE_HEROES.size() + GREEN_HEROES.size() + BLUE_HEROES.size() + PURPLE_HEROES.size() + ORANGE_HEROES.size()
 			current_ui.update_hero_count(owned_heroes.size(), total)
@@ -171,16 +176,27 @@ func _on_nav_button_pressed(button_name: String):
 			current_ui = recruit_scene.instantiate()
 			# 连接抽卡信号
 			current_ui.connect("recruit_requested", Callable(self, "_do_recruit"))
+			# 连接返回信号
+			current_ui.connect("back_requested", Callable(self, "_on_back_to_home"))
 			print("MainUI: 已连接招募信号")
 		"LineupButton":
 			current_ui = lineup_scene.instantiate()
+			# 连接返回信号
+			current_ui.connect("back_requested", Callable(self, "_on_back_to_home"))
 			print("MainUI: 已加载阵容编辑界面")
 		"BattleButton":
 			current_ui = battle_scene.instantiate()
+			# 连接返回信号（如果需要）
+			if current_ui.has_method("back_requested"):
+				current_ui.connect("back_requested", Callable(self, "_on_back_to_home"))
 	
 	# 添加到内容区
 	if current_ui != null:
 		content_area.add_child(current_ui)
+
+# 返回主页处理
+func _on_back_to_home():
+	_on_nav_button_pressed("HomeButton")
 
 # 抽卡逻辑
 func _do_recruit():
@@ -230,11 +246,15 @@ func _do_recruit():
 	
 	if not owned_heroes.has(hero_id):
 		owned_heroes[hero_id] = hero_data
+		# 同步添加到HeroLibrary单例
+		HeroLibrary.instance.add_hero(hero_id)
 		is_new = true
 	else:
 		if not hero_fragments.has(hero_id):
 			hero_fragments[hero_id] = 0
 		hero_fragments[hero_id] += 1
+		# 同步添加碎片到HeroLibrary
+		HeroLibrary.instance.add_fragments(hero_id, 1)
 	
 	# 显示结果
 	if current_ui != null and current_page == "RecruitButton":
