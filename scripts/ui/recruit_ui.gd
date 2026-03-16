@@ -1,0 +1,50 @@
+extends Control
+class_name RecruitUI
+
+# 信号
+signal recruit_requested # 点击招募按钮时发送信号
+
+func _ready():
+	# 让根节点也接收鼠标点击
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	
+	var btn = get_node_or_null("RecruitButton")
+	if btn:
+		print("RecruitUI: 找到RecruitButton，连接信号")
+		# 强制开启鼠标接收
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		btn.connect("pressed", Callable(self, "_on_recruit_clicked"))
+	else:
+		print("RecruitUI: 找不到RecruitButton节点！")
+
+func _on_input_event(event: InputEvent) -> void:
+	# 如果点击鼠标，也触发招募（备用方案）
+	if event is InputEventMouseButton and event.pressed:
+		print("RecruitUI: 背景被点击，也触发招募")
+		recruit_requested.emit()
+
+func _on_recruit_clicked():
+	print("RecruitUI: 招募按钮被点击了，发送recruit_requested信号")
+	recruit_requested.emit()
+
+# 显示国运不足提示
+func show_gdp_not_enough():
+	var result_label = get_node_or_null("ResultLabel")
+	if result_label:
+		result_label.text = "❌ 国运点不足，需要100点才能招募"
+		result_label.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
+
+# 显示抽卡结果
+func show_result(hero_data: Dictionary, is_new: bool, rarity_name: String, rarity_color: Color, fragments: int = 0):
+	var result_label = get_node_or_null("ResultLabel")
+	
+	if result_label:
+		result_label.add_theme_color_override("font_color", rarity_color)
+		if is_new:
+			result_label.text = "🎉 获得新武将：%s (%s)\n⚔️ 技能：%s | 攻击：%d | 防御：%d" % [
+				hero_data.name, rarity_name, 
+				hero_data.skill, hero_data.attack, hero_data.defense
+			]
+		else:
+			result_label.text = "📦 重复获得：%s\n已转化为%d个碎片" % [hero_data.name, fragments]
+			result_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1))

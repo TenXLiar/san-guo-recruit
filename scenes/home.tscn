@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://dol3bnemnoxd"]
+
+[ext_resource type="Script" uid="uid://2ot8c8x5g4xb" path="res://scripts/ui/home_ui.gd" id="1"]
+
+[node name="HomeUI" type="Control" unique_id=1003999285]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -1.0
+offset_top = 3.0
+offset_right = -1.0
+offset_bottom = 3.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Title" type="Label" parent="." unique_id=309591438]
+layout_mode = 0
+anchor_left = 0.5
+anchor_right = 0.5
+text = "🏯 国运：三国招贤阁"
+horizontal_alignment = 1
+
+[node name="IdleInfo" type="Label" parent="." unique_id=1972465028]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = 182.0
+offset_top = 66.0
+offset_right = 549.0
+offset_bottom = 89.0
+grow_horizontal = 2
+text = "⚡ 每秒产出：1.0 国运点 | 最多累计8小时离线收益"
+horizontal_alignment = 1
+
+[node name="HeroCount" type="Label" parent="." unique_id=1697860696]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = 195.0
+offset_top = 226.0
+offset_right = 465.0
+offset_bottom = 249.0
+grow_horizontal = 2
+text = "💡 进入招募页面按F键可以快速抽卡！"
+horizontal_alignment = 1
