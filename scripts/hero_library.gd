@@ -105,7 +105,26 @@ func load_data(data: Dictionary):
 	owned_heroes = data.get("owned_heroes", {})
 	hero_fragments = data.get("hero_fragments", {})
 
+# 保存当前阵容（9宫格，数组长度9，空位为null）
+var saved_lineup: Array = []
+
+func save_lineup(lineup: Array):
+	saved_lineup = lineup.duplicate()
+	print("阵容已保存：", saved_lineup)
+
+# 获取保存的阵容
+func get_saved_lineup() -> Array:
+	if saved_lineup.is_empty() or saved_lineup.size() != 9:
+		saved_lineup.resize(9)
+		for i in range(9):
+			if i >= saved_lineup.size():
+				saved_lineup[i] = null
+	return saved_lineup.duplicate()
+
 # 重置数据（测试用）
 func reset():
 	owned_heroes.clear()
 	hero_fragments.clear()
+	saved_lineup.clear()
+	saved_lineup.resize(9)
+	saved_lineup.fill(null)

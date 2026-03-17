@@ -90,7 +90,19 @@ func calculate_all_bonuses(faction_counts: Dictionary):
     var active_bonds = get_active_bonds(faction_counts)
     var total_effects = {}
     
+    print("=====================================")
+    print("🔍 [羁绊系统] 开始计算阵容羁绊")
+    print("   势力统计：", faction_counts)
+    
+    if active_bonds.is_empty():
+        print("   ❌ 没有激活任何羁绊")
+        print("=====================================")
+        current_bonuses = total_effects
+        return
+    
+    print("   ✅ 激活羁绊：")
     for bond in active_bonds:
+        print("      - %s：%s" % [bond["name"], bond["description"]])
         for effect_name in bond["effects"]:
             var value = bond["effects"][effect_name]
             if total_effects.has(effect_name):
@@ -100,7 +112,8 @@ func calculate_all_bonuses(faction_counts: Dictionary):
     
     # 保存到全局，战斗系统读取
     current_bonuses = total_effects
-    print("当前激活羁绊加成：", current_bonuses)
+    print("   📊 最终加成：", current_bonuses)
+    print("=====================================")
 
 # 当前激活的羁绊加成全局存储
 var current_bonuses: Dictionary = {}

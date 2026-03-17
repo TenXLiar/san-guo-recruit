@@ -241,6 +241,65 @@ func buy_extra_challenges() -> bool:
 	# TODO: 实现购买逻辑
 	return false
 
+# 供战斗UI调用，生成随机敌方阵容（用于开发测试）
+func generate_random_enemy_lineup() -> Array:
+	# 从所有武将中随机选3-6个
+	var all_heroes_data = _get_all_heroes()
+	var selected = []
+	var count = 3 + randi() % 4  # 3-6个武将
+	
+	for i in range(count):
+		if all_heroes_data.is_empty():
+			break
+		var hero = all_heroes_data[randi() % all_heroes_data.size()]
+		selected.append(hero.id)
+		all_heroes.erase(all_heroes.find(hero))
+	
+	# 填充到9宫格
+	var lineup: Array = []
+	lineup.resize(9)
+	lineup.fill(null)
+	
+	for i in range(min(selected.size(), 9)):
+		lineup[i] = selected[i]
+	
+	return lineup
+
+# 计算战斗奖励
+func calculate_reward(battle_result: Dictionary) -> Dictionary:
+	var ai_rank = player_rank - 1
+	if ai_list.size() > 0:
+		# 找第一个排名比玩家高的AI
+		for ai in ai_list:
+			if ai.rank < player_rank:
+				ai_rank = ai.rank
+				break
+	
+	var old_rank = player_rank
+	var new_rank = ai_rank
+	var reward_prestige = abs(old_rank - new_rank) * 5 + 10
+	
+	return {
+		"old_rank": old_rank,
+		"new_rank": new_rank,
+		"prestige": reward_prestige
+	}
+
+# 应用奖励
+func apply_reward(reward: Dictionary):
+	prestige += reward.prestige
+	update_rank_after_win(reward.new_rank)
+
+# 更新排名
+func update_rank_after_win(new_rank: int):
+	var old_rank = player_rank
+	player_rank = new_rank
+	print("排名更新：%d → %d" % [old_rank, new_rank])
+
+# 获取玩家当前阵容
+func get_player_lineup() -> Array:
+	return HeroLibrary.instance.get_saved_lineup()
+
 # 保存数据（供存档系统调用）
 func save_data() -> Dictionary:
 	return {

@@ -4,6 +4,7 @@ class_name MainUI
 # 节点引用
 @onready var gdp_label: Label = $TopBar/GDPLabel
 @onready var prestige_label: Label = $TopBar/PrestigeLabel
+@onready var gm_add_gdp: Button = $TopBar/GMAddGDP
 @onready var content_area: Control = $ContentArea
 @onready var nav_buttons: HBoxContainer = $BottomNav
 
@@ -97,6 +98,11 @@ func _ready():
 	_on_nav_button_pressed("HomeButton")
 	
 	print("游戏启动成功！当前每秒产出：%.1f 国运点" % gdp_per_second)
+	
+	# 连接GM按钮
+	if gm_add_gdp:
+		gm_add_gdp.connect("pressed", Callable(self, "_gm_add_1000_gdp"))
+		gm_add_gdp.visible = true  # GM功能默认显示，开发阶段方便测试
 
 # 🕒 每帧更新挂机收益
 var _accum: float = 0
@@ -264,3 +270,24 @@ func _do_recruit():
 		current_ui.show_result(hero_data, is_new, RARITY_NAMES[rarity-1], RARITY_COLORS[rarity-1], fragments)
 	
 	print("抽卡结果：%s (%s)，新武将：%s" % [hero_data.name, RARITY_NAMES[rarity-1], str(is_new)])
+
+# GM功能：增加1000国运点
+func _gm_add_1000_gdp():
+	current_gdp += 1000
+	update_resource_display()
+	print("[GM] 增加了1000国运点，当前：%d" % int(current_gdp))
+	
+	# 弹出提示
+	var popup = Label.new()
+	popup.text = "🎉 [GM] +1000 国运点"
+	popup.add_theme_font_size_override("font_size", 20)
+	popup.modulate = Color(1, 0.2, 0.2)
+	popup.anchors_preset = 8
+	popup.anchor_top = 0.4
+	content_area.add_child(popup)
+	
+	var timer = Timer.new()
+	timer.wait_time = 2.0
+	timer.connect("timeout", Callable(popup, "queue_free"))
+	add_child(timer)
+	timer.start()
