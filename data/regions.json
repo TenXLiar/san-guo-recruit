@@ -1,0 +1,50 @@
+
+[
+  {
+    "id": "zhongyuan",
+    "name": "中原",
+    "description": "中原大地，群雄逐鹿，是你霸业的起点。",
+    "unlock_condition": null,
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "event_ids": ["bandit_attack", "merchant_visit", "guandu_battle", "farmer_request", "recruit_volunteers"],
+    "first_clear_reward": {
+      "type": "random_blue_hero",
+      "value": 1,
+      "description": "随机蓝色武将"
+    }
+  },
+  {
+    "id": "jiangdong",
+    "name": "江东",
+    "description": "江东水乡，河网纵横，粮草消耗增加。",
+    "unlock_condition": "zhongyuan",
+    "food_consumption_multiplier": 1.2,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "event_ids": ["water_pirate", "zhouyu_visit", "flood_disaster", "fish_market", "cross_river_battle"],
+    "first_clear_reward": {
+      "type": "fragments",
+      "value": ["zhouyu", "luxun"],
+      "count": 5,
+      "description": "周瑜/陆逊碎片各5个"
+    }
+  },
+  {
+    "id": "xiliang",
+    "name": "西凉",
+    "description": "西凉荒漠，战马驰骋，兵力消耗增加，行军速度减慢。",
+    "unlock_condition": "jiangdong",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1.2,
+    "speed_multiplier": 0.9,
+    "event_ids": ["horse_robber", "hun_invasion", "desert_storm", "horse_trade", "mazhong_battle"],
+    "first_clear_reward": {
+      "type": "fragments",
+      "value": ["machao", "pangde"],
+      "count": 5,
+      "description": "马超/庞德碎片各5个"
+    }
+  }
+]

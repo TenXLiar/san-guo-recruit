@@ -1,87 +1,59 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/images/main_background.png" id="1"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="2"]
 
-[node name="MainUI" type="Control"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-script = ExtResource(1)
+[node name="MainUI" type="Control" anchors_preset="15" anchor_right="1.0" anchor_bottom="1.0" script=ExtResource("2")]
 
-[node name="Background" type="ColorRect" parent="."]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0.08, 0.08, 0.12, 1)
-mouse_filter = 1
+[node name="Background" type="TextureRect" parent="." anchors_preset="15" anchor_right="1.0" anchor_bottom="1.0" texture=ExtResource("1") stretch_mode="1" mouse_filter="1"]
 
-[node name="TopBar" type="HBoxContainer" parent="."]
-anchors_preset = 10
-anchor_right = 1.0
-top_offset = 10.0
-bottom_offset = 50.0
-padding_left = 20.0
-padding_right = 20.0
-alignment = 1
+[node name="TopBar" type="HBoxContainer" parent="." anchors_preset="10" anchor_right="1.0" top_offset="10.0" bottom_offset="55.0" padding_left="15.0" padding_right="15.0" alignment="1" spacing="8"]
 
-[node name="GDPIcon" type="Label" parent="TopBar"]
-text = "💰"
-custom_minimum_size = Vector2(30, 0)
-modulate = Color(1, 0.84, 0, 1)
+[node name="GDPIcon" type="Label" parent="TopBar" text="国运" custom_minimum_size="Vector2(50, 0)"]
 
-[node name="GDPLabel" type="Label" parent="TopBar"]
-text = "0"
-modulate = Color(1, 0.84, 0, 1)
-custom_minimum_size = Vector2(100, 0)
+[node name="GDPLabel" type="Label" parent="TopBar" text="0" custom_minimum_size="Vector2(70, 0)"]
 
-[node name="Spacer" type="Control" parent="TopBar"]
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(20, 0)
+[node name="Spacer" type="Control" parent="TopBar" size_flags_horizontal="3" custom_minimum_size="Vector2(10, 0)"]
 
-[node name="PrestigeIcon" type="Label" parent="TopBar"]
-text = "🏆"
-custom_minimum_size = Vector2(30, 0)
-modulate = Color(1, 0.5, 0, 1)
+[node name="PrestigeIcon" type="Label" parent="TopBar" text="排名" custom_minimum_size="Vector2(40, 0)"]
 
-[node name="PrestigeLabel" type="Label" parent="TopBar"]
-text = "0"
-modulate = Color(1, 0.5, 0, 1)
-custom_minimum_size = Vector2(100, 0)
+[node name="PrestigeLabel" type="Label" parent="TopBar" text="0" custom_minimum_size="Vector2(50, 0)"]
 
-[node name="GMAddGDP" type="Button" parent="TopBar"]
-text = "GM+1000"
-custom_minimum_size = Vector2(100, 0)
-modulate = Color(1, 0.3, 0.3, 1)
+[node name="Spacer2" type="Control" parent="TopBar" size_flags_horizontal="3" custom_minimum_size="Vector2(15, 0)"]
 
-[node name="ContentArea" type="Control" parent="."]
-anchors_preset = 15
-anchor_right = 1.0
-top_offset = 60.0
-bottom_offset = 80.0
-mouse_filter = 2
+[node name="MoneyLabel" type="Label" parent="TopBar" text="💰 0" custom_minimum_size="Vector2(70, 0)"]
 
-[node name="BottomNav" type="HBoxContainer" parent="."]
-anchors_preset = 12
-anchor_right = 1.0
-anchor_bottom = 1.0
-top_offset = -80.0
-padding_left = 20.0
-padding_right = 20.0
-alignment = 1
-spacing = 15
+[node name="FoodLabel" type="Label" parent="TopBar" text="🌾 0" custom_minimum_size="Vector2(70, 0)"]
 
-[node name="HomeButton" type="Button" parent="BottomNav"]
-text = "主页"
-custom_minimum_size = Vector2(110, 50)
+[node name="SoldierLabel" type="Label" parent="TopBar" text="⚔️ 0" custom_minimum_size="Vector2(70, 0)"]
 
-[node name="RecruitButton" type="Button" parent="BottomNav"]
-text = "招募"
-custom_minimum_size = Vector2(110, 50)
+[node name="Spacer3" type="Control" parent="TopBar" size_flags_horizontal="3" custom_minimum_size="Vector2(10, 0)"]
 
-[node name="LineupButton" type="Button" parent="BottomNav"]
-text = "阵容"
-custom_minimum_size = Vector2(110, 50)
+[node name="RegionNameBtn" type="Button" parent="TopBar" text="📋 区域" custom_minimum_size="Vector2(80, 0)"]
 
-[node name="BattleButton" type="Button" parent="BottomNav"]
-text = "挑战"
-custom_minimum_size = Vector2(110, 50)
+[node name="RegionProgress" type="ProgressBar" parent="TopBar" custom_minimum_size="Vector2(80, 0)" size_flags_horizontal="1" value="0"]
+
+[node name="Spacer4" type="Control" parent="TopBar" size_flags_horizontal="3" custom_minimum_size="Vector2(5, 0)"]
+
+[node name="GMAddGDP" type="Button" parent="TopBar" text="+1000国运" custom_minimum_size="Vector2(90, 0)"]
+
+[node name="ContentArea" type="Control" parent="." anchors_preset="15" anchor_right="1.0" anchor_bottom="1.0" top_offset="65.0" bottom_offset="70.0" mouse_filter="2"]
+
+[node name="BottomNav" type="HBoxContainer" parent="." anchors_preset="12" anchor_right="1.0" anchor_bottom="1.0" top_offset="-70.0" padding_left="10.0" padding_right="10.0" alignment="1" spacing="10"]
+
+[node name="HomeButton" type="Button" parent="BottomNav" text="🏠 主页" custom_minimum_size="Vector2(130, 50)"]
+
+[node name="RecruitButton" type="Button" parent="BottomNav" text="🎲 招募" custom_minimum_size="Vector2(130, 50)"]
+
+[node name="LineupButton" type="Button" parent="BottomNav" text="⚔️ 阵容" custom_minimum_size="Vector2(130, 50)"]
+
+[node name="BattleButton" type="Button" parent="BottomNav" text="🏆 挑战" custom_minimum_size="Vector2(130, 50)"]
+
+[node name="StrategyButton" type="Button" parent="BottomNav" text="📋 策略" custom_minimum_size="Vector2(130, 50)"]
+
+[connection signal="pressed" from="HomeButton" to="." method="_on_home_clicked"]
+[connection signal="pressed" from="RecruitButton" to="." method="_on_recruit_clicked"]
+[connection signal="pressed" from="LineupButton" to="." method="_on_lineup_clicked"]
+[connection signal="pressed" from="BattleButton" to="." method="_on_battle_clicked"]
+[connection signal="pressed" from="StrategyButton" to="." method="_on_strategy_clicked"]
+[connection signal="pressed" from="GMAddGDP" to="." method="_on_gm_add_gdp"]

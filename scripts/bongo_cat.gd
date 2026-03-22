@@ -9,31 +9,31 @@ enum CatState {
 
 # 配置常量
 const TAP_DURATION: float = 0.2  # 敲击状态持续时间
-const TAP_MULTIPLIER: float = 1.5  # 普通加速倍率
-const TAP_DURATION_EFFECT: float = 5.0  # 普通加速持续时间
 const FEVER_THRESHOLD: int = 5  # 每秒按键次数阈值触发暴走
-const FEVER_MULTIPLIER: float = 3.0  # 暴走倍率
 const FEVER_DURATION: float = 10.0  # 暴走持续时间
 const FEVER_COOLDOWN: float = 5.0  # 暴走冷却时间
 const EXP_PER_TAP: int = 1  # 每次按键获得的经验
 const EXP_PER_LEVEL: int = 100  # 每级需要的经验
+const TAP_GDP_MIN: int = 1  # 每次敲击最少国运
+const TAP_GDP_MAX: int = 3  # 每次敲击最多国运
+const FEVER_GDP_MIN: int = 5  # 暴走最少国运
+const FEVER_GDP_MAX: int = 10  # 暴走最多国运
+const TREASURE_PROBABILITY: float = 0.05  # 寻宝概率
 
 # 当前状态
 var current_state: CatState = CatState.IDLE
 var current_level: int = 1
 var current_exp: int = 0
 var tap_count_this_second: int = 0
-var multiplier_end_time: float = 0.0
 var fever_end_time: float = 0.0
 var fever_cooldown_end: float = 0.0
 
 # 节点引用
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var level_label: Label = $LevelLabel
-@onready var multiplier_label: Label = $MultiplierLabel
+@onready var gdp_label: Label = $GdpLabel
 
 # 信号
-signal multiplier_changed(multiplier: float, remaining: float)  # 倍率变化时触发
 signal level_up(new_level: int)  # 升级时触发
 signal fever_started()  # 暴走开始时触发
 signal fever_ended()  # 暴走结束时触发
@@ -48,7 +48,7 @@ func _ready():
 	
 	# 初始化显示
 	update_level_display()
-	update_multiplier_display()
+	update_gdp_display()
 	# 初始状态为idle
 	play_animation("idle")
 
@@ -67,20 +67,44 @@ func _on_key_pressed():
 	# 增加经验
 	add_exp(EXP_PER_TAP)
 	
-	# 普通敲击状态
+	# 给国运
+	var gdp_amount = 0
 	if current_state != CatState.FEVER:
+		gdp_amount = randi_range(TAP_GDP_MIN, TAP_GDP_MAX)
 		current_state = CatState.TAP
 		play_animation("tap")
-		# 设置加速效果，可叠加刷新
-		multiplier_end_time = Time.get_unix_time_from_system() + TAP_DURATION_EFFECT
-		update_multiplier()
-		
 		# 0.2秒后回到idle状态
 		var tap_timer = Timer.new()
 		tap_timer.wait_time = TAP_DURATION
 		tap_timer.connect("timeout", Callable(self, "_on_tap_finished"))
 		add_child(tap_timer)
 		tap_timer.start()
+	else:
+		gdp_amount = randi_range(FEVER_GDP_MIN, FEVER_GDP_MAX)
+	
+	# 增加国运
+	var main = get_tree().root.get_node("root-main")
+	if main:
+		main.add_gdp(gdp_amount)
+	
+	# 检查寻宝
+	if randf() < TREASURE_PROBABILITY:
+		# 触发寻宝，给少量钱粮兵
+		var treasure_min = 5
+		var treasure_max = 10
+		if current_state == CatState.FEVER:
+			treasure_min = 10
+			treasure_max = 20
+		var money = randi_range(treasure_min, treasure_max)
+		var food = randi_range(treasure_min, treasure_max)
+		var soldier = randi_range(treasure_min, treasure_max)
+		IdleManager.instance.add_money(money)
+		IdleManager.instance.add_food(food)
+		IdleManager.instance.add_soldier(soldier)
+		print("[Bongo Cat] 寻宝! +%d 钱 +%d 粮 +%d 兵" % [money, food, soldier])
+	
+	# 更新显示
+	update_gdp_display()
 
 # 每秒定时器处理
 func _on_second_timer():
@@ -96,9 +120,6 @@ func _on_second_timer():
 	# 检查暴走是否结束
 	if current_state == CatState.FEVER and now >= fever_end_time:
 		end_fever()
-	
-	# 更新倍率显示
-	update_multiplier()
 
 # 开始暴走状态
 func start_fever():
@@ -106,7 +127,6 @@ func start_fever():
 	play_animation("fever")
 	fever_end_time = Time.get_unix_time_from_system() + FEVER_DURATION
 	fever_cooldown_end = fever_end_time + FEVER_COOLDOWN
-	update_multiplier()
 	fever_started.emit()
 	print("Bongo Cat进入暴走状态！")
 
@@ -115,7 +135,6 @@ func end_fever():
 	current_state = CatState.IDLE
 	play_animation("idle")
 	fever_ended.emit()
-	update_multiplier()
 	print("Bongo Cat暴走结束，进入冷却")
 
 # 敲击动画结束
@@ -149,49 +168,23 @@ func get_exp_needed_for_next_level() -> int:
 func update_level_display():
 	level_label.text = "Lv.%d" % current_level
 
-# 更新倍率
-func update_multiplier():
-	var now = Time.get_unix_time_from_system()
-	var multiplier = 1.0
-	var remaining = 0.0
-	
-	if current_state == CatState.FEVER and now < fever_end_time:
-		multiplier = FEVER_MULTIPLIER
-		remaining = fever_end_time - now
-	elif now < multiplier_end_time:
-		multiplier = TAP_MULTIPLIER
-		remaining = multiplier_end_time - now
-	
-	# 更新挂机管理器的倍率
-	IdleManager.instance.set_temp_multiplier(multiplier, remaining)
-	
-	# 更新显示
-	update_multiplier_display(multiplier, remaining)
-	multiplier_changed.emit(multiplier, remaining)
-
-# 更新倍率显示
-func update_multiplier_display(multiplier: float = 1.0, remaining: float = 0.0):
-	if multiplier > 1.0:
-		multiplier_label.text = "%.1fx 加速\n%.0fs" % [multiplier, remaining]
-		multiplier_label.visible = true
+# 更新国运显示
+func update_gdp_display():
+	if current_state == CatState.FEVER:
+		var remaining = fever_end_time - Time.get_unix_time_from_system()
+		gdp_label.text = "暴走! +%d-%d/次\n%.0fs" % [FEVER_GDP_MIN, FEVER_GDP_MAX, remaining]
+		gdp_label.visible = true
+	elif current_state == CatState.TAP:
+		gdp_label.text = "+%d-%d/次" % [TAP_GDP_MIN, TAP_GDP_MAX]
+		gdp_label.visible = true
 	else:
-		multiplier_label.visible = false
-
-# 获取当前倍率
-func get_current_multiplier() -> float:
-	var now = Time.get_unix_time_from_system()
-	if current_state == CatState.FEVER and now < fever_end_time:
-		return FEVER_MULTIPLIER
-	elif now < multiplier_end_time:
-		return TAP_MULTIPLIER
-	return 1.0
+		gdp_label.visible = false
 
 # 保存数据（供存档系统调用）
 func save_data() -> Dictionary:
 	return {
 		"level": current_level,
-		"exp": current_exp,
-		"total_taps": tap_count_this_second  # 临时保存，重启后不保留
+		"exp": current_exp
 	}
 
 # 加载数据（供存档系统调用）

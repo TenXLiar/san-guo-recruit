@@ -59,6 +59,9 @@ BondManager="*res://scripts/bond_manager.gd"
 BattleManager="*res://scripts/battle_manager.gd"
 PvPManager="*res://scripts/pvp_manager.gd"
 SaveManager="*res://scripts/save_manager.gd"
+RegionManager="*res://autoload/region_manager.gd"
+ProgressManager="*res://autoload/progress_manager.gd"
+EventManager="*res://autoload/event_manager.gd"
 
 [display]
 

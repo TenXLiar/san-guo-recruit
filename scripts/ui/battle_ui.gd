@@ -44,7 +44,8 @@ func _ready():
 	speed_slider.connect("value_changed", Callable(self, "_on_speed_changed"))
 	
 	speed_slider.value = 1.0
-	desc_label.visible = false
+	if desc_label:
+		desc_label.visible = false
 	
 	# 开始战斗
 	start_battle()
@@ -76,10 +77,17 @@ func create_unit_icons(lineup: Array, container: VBoxContainer, is_player: bool)
 	for hero_id in lineup:
 		if not hero_id:
 			# 空位
+			var box = HBoxContainer.new()
+			box.spacing = 8
+			var empty_tex = TextureRect.new()
+			empty_tex.custom_minimum_size = Vector2(40, 40)
+			box.add_child(empty_tex)
 			var empty = Label.new()
 			empty.text = "(空位)"
 			empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-			container.add_child(empty)
+			empty.custom_minimum_size = Vector2(120, 0)
+			box.add_child(empty)
+			container.add_child(box)
 			continue
 		
 		var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
@@ -91,19 +99,37 @@ func create_unit_icons(lineup: Array, container: VBoxContainer, is_player: bool)
 		
 		var box = HBoxContainer.new()
 		box.spacing = 8
+		box.alignment = 1
+		
+		# 武将头像
+		if hero_data.has("image_path"):
+			var portrait = TextureRect.new()
+			portrait.custom_minimum_size = Vector2(40, 40)
+			portrait.stretch_mode = 2  # STRETCH_MODE_KEEP_ASPECT_COVERED = 2
+			var tex = load(hero_data.image_path)
+			if tex:
+				portrait.texture = tex
+				portrait.modulate = get_faction_color(hero_data.faction)
+			box.add_child(portrait)
+		
+		var vbox = VBoxContainer.new()
+		vbox.spacing = 2
 		
 		var name_label = Label.new()
-		name_label.text = "%s (%s)" % [hero_data.name, get_faction_name(hero_data.faction)]
+		name_label.text = "%s [%s]" % [hero_data.name, get_faction_name(hero_data.faction)]
 		name_label.add_theme_color_override("font_color", get_faction_color(hero_data.faction))
 		name_label.custom_minimum_size = Vector2(100, 0)
+		name_label.add_theme_font_size_override("font_size", 14)
+		vbox.add_child(name_label)
 		
 		var hp_label = Label.new()
 		hp_label.name = "hp_label"
 		hp_label.text = "HP: %d" % hp
 		hp_label.custom_minimum_size = Vector2(80, 0)
+		hp_label.add_theme_font_size_override("font_size", 12)
+		vbox.add_child(hp_label)
 		
-		box.add_child(name_label)
-		box.add_child(hp_label)
+		box.add_child(vbox)
 		container.add_child(box)
 
 func get_faction_name(faction: String) -> String:
@@ -146,15 +172,35 @@ func _process_battle_result(result: Dictionary):
 	else:
 		battle_log.append_text("\n[color=red][b]💀 战斗失败[/b][/color]")
 		battle_log.append_text("\n共进行%d回合\n" % result.rounds)
+	
+	# 如果开启了自动战斗，自动开始下一场
+	if is_auto_battle:
+		_timer_start_next_battle()
+	battle_log.scroll_to_line(battle_log.get_line_count())
 
 func _on_auto_battle_toggled():
 	is_auto_battle = !is_auto_battle
 	if is_auto_battle:
-		auto_battle_button.text = "自动战斗：开启"
-		auto_battle_button.disabled = true
+		auto_battle_button.text = "自动战斗：开启 ✅"
+		# 如果战斗已经结束，自动开始下一场
+		if not is_battle_running:
+			_timer_start_next_battle()
 	else:
-		auto_battle_button.text = "自动战斗：关闭"
+		auto_battle_button.text = "自动战斗：关闭 ⚪"
 	battle_log.scroll_to_line(battle_log.get_line_count())
+
+func _timer_start_next_battle():
+	# 延迟一小会儿自动开始下一场
+	var timer = Timer.new()
+	timer.wait_time = 1.5 / battle_speed
+	timer.one_shot = true
+	timer.connect("timeout", Callable(self, "_do_auto_next"))
+	add_child(timer)
+	timer.start()
+
+func _do_auto_next():
+	if is_auto_battle and not is_battle_running:
+		start_battle()
 
 func _on_next_step():
 	# 如果已经战斗结束，重新开始新战斗

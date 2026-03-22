@@ -2,80 +2,23 @@
 
 [ext_resource type="Script" path="res://scripts/ui/recruit_ui.gd" id="1"]
 
-[node name="RecruitUI" type="Control"]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = -2.0
-offset_bottom = -1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("1")
+[node name="RecruitUI" type="Control" anchors_preset="15" anchor_right="1.0" anchor_bottom="1.0" offset_right="-2.0" offset_bottom="-1.0" grow_horizontal="2" grow_vertical="2" script=ExtResource("1")]
 
-[node name="Title" type="Label" parent="."]
-layout_mode = 0
-anchor_left = 0.5
-anchor_right = 0.5
-offset_top = 20
-text = "🎲 武将招募"
-horizontal_alignment = 1
-custom_minimum_size = Vector2(0, 50)
-add_theme_font_size_override "font_size" 32
+[node name="Title" type="Label" parent="." layout_mode="0" anchor_left="0.5" anchor_right="0.5" offset_top="30" text="🎲 武将招募" horizontal_alignment="1" custom_minimum_size=Vector2(0, 50)]
 
-[node name="Desc" type="Label" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -559.0
-offset_top = 80.0
-offset_right = -219.0
-offset_bottom = 103.0
-grow_horizontal = 2
-text = "每次招募消耗100国运点 | 按F快速抽卡 | ESC 返回主页"
-horizontal_alignment = 1
+[node name="Desc" type="Label" parent="." layout_mode="1" anchors_preset="5" anchor_left="0.0" anchor_right="1.0" offset_top="90" offset_bottom="115" grow_horizontal="2" text="每次招募消耗100国运点 | 按F快速抽卡" horizontal_alignment="1"]
 
-[node name="Prob" type="Label" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 218.0
-offset_top = 130.0
-offset_right = 573.0
-offset_bottom = 153.0
-grow_horizontal = 2
-text = "📊 概率：白70% | 绿20% | 蓝7% | 紫2% | 橙1%"
-horizontal_alignment = 1
+[node name="Prob" type="Label" parent="." layout_mode="1" anchors_preset="5" anchor_left="0.0" anchor_right="1.0" offset_top="120" offset_bottom="145" grow_horizontal="2" text="📊 抽卡概率：白 70% | 绿 20% | 蓝 7% | 紫 2% | 橙 1%" horizontal_alignment="1"]
 
-[node name="RecruitButton" type="Button" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = 280.0
-offset_top = 180.0
-offset_right = 600.0
-offset_bottom = 230.0
-grow_horizontal = 2
-text = "🔴 招募武将 (100 国运点)"
-mouse_filter = 2
-custom_minimum_size = Vector2(0, 50)
+[node name="RecruitButton" type="Button" parent="." layout_mode="0" anchor_left="0.3" anchor_right="0.7" offset_top="160" offset_bottom="215" text="🔴 招募武将 (消耗 100 国运点)" custom_minimum_size=Vector2(0, 55)]
 
-[node name="ResultLabel" type="Label" parent="."]
-layout_mode = 0
-anchor_left = 0.5
-anchor_right = 0.5
-offset_top = 280.0
-horizontal_alignment = 1
-custom_minimum_size = Vector2(500, 120)
-add_theme_font_size_override "font_size" 24
+[node name="ResultContainer" type="VBoxContainer" parent="." layout_mode="0" anchor_left="0.5" anchor_right="0.5" offset_left="-320" offset_top="230" custom_minimum_size=Vector2(640, 280) alignment="1"]
 
-[node name="BackButton" type="Button" parent="."]
-layout_mode = 0
-anchor_left = 0.7
-anchor_right = 0.9
-anchor_bottom = 1.0
-offset_bottom = -40
-text = "🏠 返回主页 (ESC)"
-custom_minimum_size = Vector2(0, 40)
+[node name="ResultLabel" type="Label" parent="ResultContainer" text="等待招募..." horizontal_alignment="1" custom_minimum_size=Vector2(600, 100)]
+
+[node name="LastResult" type="TextureRect" parent="ResultContainer" custom_minimum_size=Vector2(200, 200) stretch_mode="2"]
+
+[node name="BackButton" type="Button" parent="." layout_mode="0" anchor_left="0.7" anchor_right="0.9" anchor_bottom="1.0" offset_bottom="-50" text="🏠 返回主页 (ESC)" custom_minimum_size=Vector2(0, 45)]
+
+[connection signal="pressed" from="BackButton" to="." method="_on_back_clicked"]
+[connection signal="pressed" from="RecruitButton" to="." method="_on_recruit_clicked"]

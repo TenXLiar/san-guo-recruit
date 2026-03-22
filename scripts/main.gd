@@ -4,9 +4,54 @@ class_name MainUI
 # 节点引用
 @onready var gdp_label: Label = $TopBar/GDPLabel
 @onready var prestige_label: Label = $TopBar/PrestigeLabel
+@onready var money_label: Label = $TopBar/MoneyLabel
+@onready var food_label: Label = $TopBar/FoodLabel
+@onready var soldier_label: Label = $TopBar/SoldierLabel
+@onready var region_name_btn: Button = $TopBar/RegionNameBtn
+@onready var region_progress_bar: ProgressBar = $TopBar/RegionProgress
 @onready var gm_add_gdp: Button = $TopBar/GMAddGDP
 @onready var content_area: Control = $ContentArea
 @onready var nav_buttons: HBoxContainer = $BottomNav
+
+# 区域详情弹窗
+var region_detail_dialog: AcceptDialog = null
+
+# 策略面板
+var strategy_dialog: AcceptDialog = null
+var strategy_vbox: VBoxContainer = null
+
+# 策略定义
+var STRATEGIES = [
+	{
+		"id": "speed_boost",
+		"name": "犒赏三军",
+		"description": "攻城速度+50%，持续30秒\n消耗：钱 50 + 粮 50",
+		"cost_money": 50,
+		"cost_food": 50,
+		"cost_soldier": 0,
+		"speed_bonus": 1.5,
+		"duration": 30
+	},
+	{
+		"id": "spying",
+		"name": "间谍活动",
+		"description": "下一次随机事件成功率+20%\n消耗：钱 30",
+		"cost_money": 30,
+		"cost_food": 0,
+		"cost_soldier": 0,
+		"event_bonus": 0.2,
+		"duration": 1
+	},
+	{
+		"id": "recruit_soldier",
+		"name": "紧急征兵",
+		"description": "立即获得大量兵力\n消耗：钱 50 + 粮 50\n获得：(钱+粮) * 0.8",
+		"cost_money": 50,
+		"cost_food": 50,
+		"cost_soldier": 0,
+		"soldier_multiplier": 0.8
+	}
+]
 
 # 游戏数据
 var current_gdp: float = 1000.0
@@ -74,8 +119,20 @@ var library_scene: PackedScene = preload("res://scenes/library.tscn")
 var battle_scene: PackedScene = preload("res://scenes/battle.tscn")
 
 func _ready():
-	# 初始化离线时间
-	last_online_time = Time.get_unix_time_from_system()
+	# 从存档加载数据
+	if SaveManager.has_save():
+		var loaded = SaveManager.load_game()
+		current_gdp = loaded.get("current_gdp", 1000.0)
+		current_prestige = loaded.get("current_prestige", 0)
+		current_rank = loaded.get("current_rank", 1000)
+		owned_heroes = loaded.get("owned_heroes", {})
+		hero_fragments = loaded.get("hero_fragments", {})
+		last_online_time = loaded.get("last_online_time", Time.get_unix_time_from_system())
+		print("[MainUI] 存档加载完成")
+	else:
+		# 初始化离线时间
+		last_online_time = Time.get_unix_time_from_system()
+		print("[MainUI] 无存档，使用初始数据")
 	
 	# 让Background忽略鼠标事件，避免挡住点击
 	var bg = get_node_or_null("Background")
@@ -103,6 +160,45 @@ func _ready():
 	if gm_add_gdp:
 		gm_add_gdp.connect("pressed", Callable(self, "_gm_add_1000_gdp"))
 		gm_add_gdp.visible = true  # GM功能默认显示，开发阶段方便测试
+	
+	# 连接区域按钮点击
+	if region_name_btn:
+		region_name_btn.connect("pressed", Callable(self, "_show_region_detail"))
+	
+	# 创建区域详情弹窗
+	region_detail_dialog = AcceptDialog.new()
+	region_detail_dialog.title = "区域详情"
+	region_detail_dialog.set_min_size(Vector2(400, 300))
+	add_child(region_detail_dialog)
+	
+	# 创建策略对话框
+	strategy_dialog = AcceptDialog.new()
+	strategy_dialog.title = "📋 策略使用"
+	strategy_dialog.set_min_size(Vector2(450, 400))
+	strategy_vbox = VBoxContainer.new()
+	strategy_vbox.custom_minimum_size = Vector2(0, 300)
+	strategy_dialog.add_child(strategy_vbox)
+	strategy_dialog.connect("confirmed", Callable(self, "_on_strategy_confirmed"))
+	add_child(strategy_dialog)
+	
+	# 创建每个策略按钮
+	for s in STRATEGIES:
+		var btn = Button.new()
+		btn.text = "%s\n%s" % [s.name, s.description]
+		btn.custom_minimum_size = Vector2(0, 80)
+		btn.connect("pressed", Callable(self, "_select_strategy").bind(s))
+		strategy_vbox.add_child(btn)
+	
+	# 监听进度更新，刷新UI
+	ProgressManager.progress_updated.connect(_on_progress_updated)
+	
+	# 连接策略按钮
+	var strategy_btn = get_node_or_null("BottomNav/StrategyButton")
+	if strategy_btn:
+		strategy_btn.connect("pressed", Callable(self, "_show_strategy_dialog"))
+	
+	# 自动保存 when closing
+	connect("tree_exiting", Callable(self, "_auto_save"))
 
 # 🕒 每帧更新挂机收益
 var _accum: float = 0
@@ -155,8 +251,20 @@ func show_offline_rewards():
 
 # 更新资源显示
 func update_resource_display():
-	gdp_label.text = str(int(current_gdp))
-	prestige_label.text = str(current_prestige)
+	gdp_label.text = "%.1f" % current_gdp
+	prestige_label.text = "%d" % current_prestige
+	if money_label:
+		money_label.text = "%.0f 💰" % IdleManager.get_current_money()
+	if food_label:
+		food_label.text = "%.0f 🌾" % IdleManager.get_current_food()
+	if soldier_label:
+		soldier_label.text = "%.0f ⚔️" % IdleManager.get_current_soldier()
+	if region_name_btn:
+		var current_region = RegionManager.get_current_region()
+		if current_region != {}:
+			region_name_btn.text = "📋 " + current_region.name
+	if region_progress_bar:
+		region_progress_bar.value = RegionManager.get_progress() / 100.0
 
 # 导航按钮点击
 func _on_nav_button_pressed(button_name: String):
@@ -173,6 +281,8 @@ func _on_nav_button_pressed(button_name: String):
 	match button_name:
 		"HomeButton":
 			current_ui = home_scene.instantiate()
+			# 连接点击加速信号
+			current_ui.connect("clicked_gdp", Callable(self, "_on_click_gdp"))
 			# 回到主页显示底部导航
 			nav_buttons.visible = true
 			# 更新武将数量
@@ -284,6 +394,135 @@ func _gm_add_1000_gdp():
 	popup.modulate = Color(1, 0.2, 0.2)
 	popup.anchors_preset = 8
 	popup.anchor_top = 0.4
+	content_area.add_child(popup)
+	
+	var timer = Timer.new()
+	timer.wait_time = 2.0
+	timer.connect("timeout", Callable(popup, "queue_free"))
+	add_child(timer)
+	timer.start()
+
+# 处理点击获得国运
+func _on_click_gdp(amount: float):
+	current_gdp += amount
+	update_resource_display()
+	print("[点击加速] +%.1f 国运点，当前：%.1f" % [amount, current_gdp])
+
+# 显示提示toast
+func _show_toast(text: String):
+	var popup = Label.new()
+	popup.text = text
+	popup.add_theme_font_size_override("font_size", 18)
+	if text.begins_with("❌"):
+		popup.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
+	else:
+		popup.add_theme_color_override("font_color", Color(0.2, 1, 0.2))
+	popup.anchors_preset = 8
+	popup.anchor_top = 0.2
+	content_area.add_child(popup)
+	
+	# 3秒后消失
+	var timer = Timer.new()
+	timer.wait_time = 3.0
+	timer.connect("timeout", Callable(popup, "queue_free"))
+	add_child(timer)
+	timer.start()
+
+# 进度更新回调
+func _on_progress_updated(progress: float):
+	update_resource_display()
+
+# 显示区域详情
+func _show_region_detail():
+	var current_region = RegionManager.get_current_region()
+	if current_region.is_empty():
+		return
+	
+	# 构建详情文本
+	var text = "**%s**\n\n%s\n\n" % [current_region.name, current_region.description]
+	text += "**消耗倍率**: \n"
+	text += "- 粮草: x%.1f\n" % current_region.food_consumption_multiplier
+	text += "- 兵力: x%.1f\n" % current_region.soldier_consumption_multiplier
+	text += "- 速度: x%.1f\n\n" % current_region.speed_multiplier
+	text += "**当前进度: %.1f%%\n" % RegionManager.get_progress()
+	text += "\n**通关奖励: %s" % current_region.first_clear_reward.description
+	
+	region_detail_dialog.set_text(text)
+	region_detail_dialog.show()
+
+# 显示策略对话框
+func _show_strategy_dialog():
+	strategy_dialog.show()
+
+# 选择策略
+func _select_strategy(strategy: Dictionary):
+	# 检查资源是否足够
+	if IdleManager.get_current_money() < strategy.get("cost_money", 0):
+		# 弹出提示钱不够
+		_show_toast("❌ 钱不足，无法使用此策略")
+		return
+	if IdleManager.get_current_food() < strategy.get("cost_food", 0):
+		_show_toast("❌ 粮草不足，无法使用此策略")
+		return
+	if IdleManager.get_current_soldier() < strategy.get("cost_soldier", 0):
+		_show_toast("❌ 兵力不足，无法使用此策略")
+		return
+	
+	# 消耗资源
+	IdleManager.spend_money(strategy.get("cost_money", 0))
+	IdleManager.spend_food(strategy.get("cost_food", 0))
+	IdleManager.spend_soldier(strategy.get("cost_soldier", 0))
+	
+	# 应用策略效果
+	match strategy.id:
+		"speed_boost":
+			# 犒赏三军：攻城速度+50% 持续30秒
+			IdleManager.instance.set_temp_speed_bonus(strategy.speed_bonus, strategy.duration)
+			_show_toast("✅ 犒赏三军生效！速度+50%%，持续30秒")
+		"spying":
+			# 间谍活动：下一次事件成功率+20% （后续事件系统实现，现在只消耗给钱记录）
+			# TODO: 事件系统读取这个加成
+			_show_toast("✅ 间谍活动生效！下一事件成功率+20%%")
+		"recruit_soldier":
+			# 紧急征兵：获得(钱+粮) * 系数
+			var soldier_gain = (strategy.cost_money + strategy.cost_food) * strategy.soldier_multiplier
+			IdleManager.add_soldier(soldier_gain)
+			_show_toast("✅ 紧急征兵完成！获得 +%.0f 兵力" % soldier_gain)
+	
+	# 关闭对话框
+	strategy_dialog.hide()
+	update_resource_display()
+
+# 确认按钮不用了，我们直接点击按钮执行
+func _on_strategy_confirmed():
+	strategy_dialog.hide()
+
+# 自动保存
+func _auto_save():
+	var save_data = {
+		"current_gdp": current_gdp,
+		"current_prestige": current_prestige,
+		"current_rank": current_rank,
+		"owned_heroes": owned_heroes,
+		"hero_fragments": hero_fragments,
+		"last_online_time": Time.get_unix_time_from_system()
+	}
+	var success = SaveManager.save_game(save_data)
+	if success:
+		print("[MainUI] 自动保存成功")
+	else:
+		print("[MainUI] 自动保存失败")
+
+# 手动保存按钮（可以在UI添加）
+func _manual_save():
+	_auto_save()
+	# 弹出提示
+	var popup = Label.new()
+	popup.text = "💾 存档成功！"
+	popup.add_theme_font_size_override("font_size", 20)
+	popup.modulate = Color(0, 1, 0)
+	popup.anchors_preset = 8
+	popup.anchor_top = 0.5
 	content_area.add_child(popup)
 	
 	var timer = Timer.new()

@@ -1,5 +1,6 @@
 extends Control
-class_name RecruitUI
+# 类名和文件名冲突了，去掉class_name因为autoload不需要它
+# class_name RecruitUI
 
 # 信号
 signal recruit_requested # 点击招募按钮时发送信号
@@ -51,15 +52,27 @@ func show_gdp_not_enough():
 
 # 显示抽卡结果
 func show_result(hero_data: Dictionary, is_new: bool, rarity_name: String, rarity_color: Color, fragments: int = 0):
-	var result_label = get_node_or_null("ResultLabel")
+	var result_label = get_node_or_null("ResultContainer/ResultLabel")
+	var result_tex = get_node_or_null("ResultContainer/LastResult")
 	
 	if result_label:
 		result_label.add_theme_color_override("font_color", rarity_color)
 		if is_new:
 			result_label.text = "🎉 获得新武将：%s (%s)\n⚔️ 技能：%s | 攻击：%d | 防御：%d" % [
 				hero_data.name, rarity_name, 
-				hero_data.skill, hero_data.attack, hero_data.defense
+				hero_data.skill_name, hero_data.attack, hero_data.defense
 			]
 		else:
 			result_label.text = "📦 重复获得：%s\n已转化为%d个碎片" % [hero_data.name, fragments]
 			result_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1))
+	
+	# 显示武将头像
+	if result_tex and hero_data.has("image_path"):
+		var tex = load(hero_data.image_path)
+		if tex:
+			result_tex.texture = tex
+			# 根据稀有度给头像加边框颜色
+			result_tex.modulate = rarity_color
+		else:
+			result_tex.texture = null
+			print("RecruitUI: 无法加载头像: ", hero_data.image_path)

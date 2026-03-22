@@ -18,7 +18,8 @@
         "attack_buff": 0.15,
         "duration": 3
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wei_caocao.png"
     },
     {
       "id": "wei_xiahoudun",
@@ -37,7 +38,8 @@
         "damage_multiplier": 2.0,
         "self_hp_cost": 0.1
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wei_xiahoudun.png"
     },
     {
       "id": "wei_zhangliao",
@@ -57,7 +59,8 @@
         "stun_chance": 0.3,
         "stun_duration": 1
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wei_zhangliao.png"
     },
     {
       "id": "shu_liubei",
@@ -77,7 +80,8 @@
         "defense_buff": 0.1,
         "duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/shu_liubei.png"
     },
     {
       "id": "shu_guanyu",
@@ -96,14 +100,15 @@
         "damage_multiplier": 3.0,
         "critical": true
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/shu_guanyu.png"
     },
     {
       "id": "shu_zhangfei",
       "name": "张飞",
       "faction": "shu",
-      "rarity": 3,
-      "force": 96,
+      "rarity": 4,
+      "force": 97,
       "intelligence": 35,
       "politics": 28,
       "charm": 60,
@@ -116,13 +121,14 @@
         "damage_reduction": 0.2,
         "duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/shu_zhangfei.png"
     },
     {
       "id": "wu_sunquan",
       "name": "孙权",
       "faction": "wu",
-      "rarity": 4,
+      "rarity": 2,
       "force": 70,
       "intelligence": 86,
       "politics": 93,
@@ -135,7 +141,8 @@
         "skill_rate_buff": 0.2,
         "duration": 3
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wu_sunquan.png"
     },
     {
       "id": "wu_zhouyu",
@@ -155,7 +162,8 @@
         "burn_damage": 0.5,
         "burn_duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wu_zhouyu.png"
     },
     {
       "id": "wu_lvmeng",
@@ -175,7 +183,8 @@
         "defense_debuff": 0.2,
         "duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wu_lvmeng.png"
     },
     {
       "id": "qun_lvbu",
@@ -195,7 +204,8 @@
         "attack_buff": 0.3,
         "duration": 1
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/qun_lvbu.png"
     },
     {
       "id": "qun_diaochan",
@@ -214,7 +224,8 @@
         "target_count": 2,
         "damage_multiplier": 1.5
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/qun_diaochan.png"
     },
     {
       "id": "wei_yujin",
@@ -234,7 +245,8 @@
         "defense_buff": 0.1,
         "duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wei_yujin.png"
     },
     {
       "id": "shu_weiyan",
@@ -253,7 +265,8 @@
         "damage_multiplier": 1.2,
         "heal_percent": 0.5
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/shu_weiyan.png"
     },
     {
       "id": "wu_huanggai",
@@ -272,7 +285,8 @@
         "damage_multiplier": 1.3,
         "self_hp_cost": 0.15
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wu_huanggai.png"
     },
     {
       "id": "qun_dongzhuo",
@@ -290,7 +304,8 @@
         "target": "self",
         "heal_percent": 0.1
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/qun_dongzhuo.png"
     },
     {
       "id": "wei_caoren",
@@ -309,7 +324,8 @@
         "damage_reduction": 0.2,
         "duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wei_caoren.png"
     },
     {
       "id": "shu_huangzhong",
@@ -327,7 +343,8 @@
         "target": "back_enemy",
         "damage_multiplier": 1.8
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/shu_huangzhong.png"
     },
     {
       "id": "qun_zhangjiao",
@@ -346,7 +363,8 @@
         "damage_multiplier": 0.8,
         "heal_percent": 0.05
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/qun_zhangjiao.png"
     },
     {
       "id": "shu_zhaoyun",
@@ -366,7 +384,8 @@
         "defense_buff": 0.15,
         "duration": 2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/shu_zhaoyun.png"
     },
     {
       "id": "qun_yuanshao",
@@ -385,7 +404,8 @@
         "target_count": 2,
         "damage_multiplier": 1.2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/qun_yuanshao.png"
     },
     {
       "id": "wei_xiahouyuan",
@@ -405,7 +425,8 @@
         "stun_chance": 0.3,
         "stun_duration": 1
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wei_xiahouyuan.png"
     },
     {
       "id": "wu_ganing",
@@ -423,7 +444,8 @@
         "target": "back_enemy",
         "damage_multiplier": 2.2
       },
-      "fragments": 0
+      "fragments": 0,
+      "image_path": "res://assets/images/wu_ganning.png"
     }
   ]
 }
