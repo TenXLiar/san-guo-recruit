@@ -1,99 +1,306 @@
 extends Control
-class_name LineupUI
 
-# 阵容配置
-const GRID_SIZE: int = 3  # 3x3九宫格
-const MAX_POSITION: int = GRID_SIZE * GRID_SIZE  # 9个格子，只放上阵武将
-const MAX_UPFRONT: int = 3  # MVP固定上阵人数上限3
-# 镇守槽位：初始1个，每征服一个区域+1 → 从RegionManager获取
+# 九宫格大小
+const GRID_SIZE = 3
+const MAX_POSITION = GRID_SIZE * GRID_SIZE  # 3x3 = 9 个格子
 
-# 武将状态：每个已拥有武将记录状态 "upfront" 或 "guard"
-var hero_states: Dictionary = {}  # {hero_id: "upfront"/"guard"}
+# UI 节点引用
+var grid: GridContainer
+var bond_info: VBoxContainer
+var bond_details: Label
+var stats_label: Label
+
+# 数据
+var current_lineup: Array = []
+var selected_hero_id: String = ""
+var current_selected_button: Button = null
+var current_selected_hero: Dictionary = {}
+
+# 武将库引用
+var hero_library: Node = null
 
 # 信号
-signal back_requested # 点击返回按钮发送
-signal stats_updated # 状态更新后触发，用于更新产出统计
-
-# 节点引用 - 懒加载获取
-var grid: GridContainer = null
-var hero_list: VBoxContainer = null
-var save_button: Button = null
-var bond_details: Label = null
-var stats_label: Label = null  # 显示上阵/镇守统计
-
-# 当前阵容：九宫格数组，元素为武将ID，空位为null → 只放上阵武将
-var current_lineup: Array = []
-# 当前选中的武将ID（用于点击放置）
-var selected_hero_id: String = ""
-# 所有格子节点引用
-var grid_cells: Array = []
+signal lineup_saved
+signal back_requested
 
 func _ready():
-	# 打印所有子节点，方便调试
-	print("LineupUI 所有子节点:")
-	for child in get_children():
-		print("  - ", child.name)
+	# 初始化九宫格数组（9个空位）
+	for i in range(MAX_POSITION):
+		current_lineup.append(null)
 	
-	# 获取节点引用 - 路径根据实际节点名称调整
-	grid = get_node_or_null("GridContainer")
-	hero_list = get_node_or_null("ScrollContainer#VBoxContainer")
-	save_button = get_node_or_null("SaveButton")
-	bond_details = get_node_or_null("BondInfo#BondDetails")
+	grid = get_node("LeftContainer/GridContainer") as GridContainer
+	bond_info = get_node("LeftContainer/BondInfo") as VBoxContainer
+	bond_details = get_node("LeftContainer/BondInfo/BondDetails") as Label
+	stats_label = get_node("LeftContainer/BondInfo/StatsLabel") as Label
+	
+	# 获取武将库单例
+	hero_library = HeroLibrary.instance
+	
+	# 添加背景蒙板，确保不被背景图挡住
+	add_background_mask()
 	
 	if not grid:
-		print("LineupUI: 找不到GridContainer节点")
-	if not hero_list:
-		print("LineupUI: 找不到ScrollContainer#VBoxContainer节点")
-	if not save_button:
-		print("LineupUI: 找不到SaveButton节点")
-	if not bond_details:
-		print("LineupUI: 找不到BondInfo#BondDetails节点")
+		push_error("无法找到 GridContainer 节点")
+		return
+	if not bond_details or not stats_label:
+		push_error("无法找到羁绊或属性标签")
 	
-	# 初始化阵容数组
-	current_lineup.resize(MAX_POSITION)
-	current_lineup.fill(null)
+	create_grid()
+	load_saved_lineup()
+	update_bond_info()
+	update_stats()
 	
-	# 创建九宫格
-	if grid:
-		create_grid()
-	# 加载武将列表
-	if hero_list:
-		load_hero_list()
-	# 加载保存的阵容
-	load_lineup()
+	# 绑定按钮信号
+	var save_btn = get_node_or_null("ButtonContainer/SaveButton")
+	if save_btn:
+		save_btn.pressed.connect(_on_save_pressed)
 	
-	# 更新羁绊显示
-	if bond_details:
-		update_bond_display()
-	
-	# 获取统计标签
-	stats_label = get_node_or_null("StatsLabel")
-	
-	# 初始化武将状态（所有武将默认upfront）
-	var owned_heroes = HeroLibrary.instance.get_hero_list()
-	for hero_id in owned_heroes:
-		if not hero_states.has(hero_id):
-			hero_states[hero_id] = "upfront"  # 默认上阵
-	
-	# 连接信号
-	if save_button:
-		save_button.connect("pressed", Callable(self, "save_lineup"))
-	
-	# 连接清空按钮
-	var clear_btn = get_node_or_null("ClearButton")
+	var clear_btn = get_node_or_null("ButtonContainer/ClearButton")
 	if clear_btn:
-		clear_btn.connect("pressed", Callable(self, "clear_lineup"))
+		clear_btn.pressed.connect(_on_clear_pressed)
 	
-	# 连接返回按钮
-	var back_btn = get_node_or_null("BackButton")
+	var back_btn = get_node_or_null("ButtonContainer/BackButton")
 	if back_btn:
-		back_btn.connect("pressed", Callable(self, "_on_back_clicked"))
+		back_btn.pressed.connect(_on_back_clicked)
 	
-	# 更新统计显示
-	update_stats_display()
+	# 监听ESC快捷键返回
+	mouse_filter = MOUSE_FILTER_STOP
+	
+	# 确保GridContainer能接收鼠标事件
+	if grid:
+		grid.mouse_filter = MOUSE_FILTER_STOP
+	
+	# 延迟打印尺寸，确保布局完成
+	call_deferred("_debug_print_sizes")
+	await get_tree().process_frame
+	grid.queue_sort()
+func _debug_print_sizes():
+	print("Grid size: ", grid.size)
+	print("Grid child count: ", grid.get_child_count())
+	print("LeftContainer size: ", get_node("LeftContainer").size)
+	print("LineupUI size: ", size)
 
-func _on_back_clicked():
-	back_requested.emit()
+# 添加背景蒙板，挡住下方的主背景
+func add_background_mask():
+	# 创建一个全屏颜色矩形作为背景，放在最底层
+	var bg = ColorRect.new()
+	bg.name = "BackgroundMask"
+	bg.anchors_preset = 15
+	bg.anchor_right = 1.0
+	bg.anchor_bottom = 1.0
+	bg.offset_right = -2.0
+	bg.offset_bottom = -1.0
+	bg.color = Color(0.15, 0.15, 0.15, 0.95)  # 半透明深色蒙板
+	bg.mouse_filter = MOUSE_FILTER_IGNORE  # 不阻挡点击
+	add_child(bg)
+	# 移动到最底层
+	move_child(bg, 0)
+
+func create_grid():
+	if not grid:
+		return
+	
+	# 设置 GridContainer 样式（同前）
+	grid.add_theme_stylebox_override("panel", StyleBoxFlat.new())
+	var grid_style = grid.get_theme_stylebox("panel")
+	if grid_style is StyleBoxFlat:
+		grid_style.bg_color = Color(0.18, 0.18, 0.18, 0.95)
+		grid_style.border_width_left = 3
+		grid_style.border_width_right = 3
+		grid_style.border_width_top = 3
+		grid_style.border_width_bottom = 3
+		grid_style.border_color = Color(1, 1, 1, 0.7)
+	
+	grid.columns = GRID_SIZE
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	
+	for i in range(MAX_POSITION):
+		var container = VBoxContainer.new()
+		container.custom_minimum_size = Vector2(94, 94)
+		
+		# 格子背景样式（同前）
+		var style = StyleBoxFlat.new()
+		style.bg_color = Color(0.3, 0.3, 0.4, 1.0)
+		style.border_width_left = 2
+		style.border_width_right = 2
+		style.border_width_top = 2
+		style.border_width_bottom = 2
+		style.border_color = Color(1, 1, 1, 0.9)
+		container.add_theme_stylebox_override("panel", style)
+		
+		# 头像区域（图片）
+		var tex_rect = TextureRect.new()
+		tex_rect.name = "Portrait"
+		tex_rect.custom_minimum_size = Vector2(80, 80)
+		tex_rect.expand = true
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex_rect.texture = null
+		container.add_child(tex_rect)
+		
+		# 数字标签（可选，调试用）
+		var label = Label.new()
+		label.text = str(i)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.add_theme_color_override("font_color", Color(1, 1, 1))
+		container.add_child(label)
+		
+		# 透明按钮（关键修改：填充整个容器）
+		var cell_btn = Button.new()
+		cell_btn.name = "Cell_%d" % i
+		cell_btn.flat = false
+		cell_btn.modulate = Color(1, 1, 1, 0.5)
+		cell_btn.text = str(i)
+		# 锚点设置：填充整个容器
+		cell_btn.anchor_left = 0.0
+		cell_btn.anchor_top = 0.0
+		cell_btn.anchor_right = 1.0
+		cell_btn.anchor_bottom = 1.0
+		cell_btn.offset_left = 0
+		cell_btn.offset_top = 0
+		cell_btn.offset_right = 0
+		cell_btn.offset_bottom = 0
+		cell_btn.pressed.connect(_on_cell_pressed.bind(i))
+		container.add_child(cell_btn)
+		
+		container.set_meta("index", i)
+		container.set_meta("button", cell_btn)
+		
+		grid.add_child(container)
+	
+	# 提升层级（已存在）
+	if grid.get_parent():
+		grid.get_parent().move_child(grid, -1)
+		grid.z_index = 20
+	else:
+		push_error("GridContainer 没有父节点，无法调整层级")
+
+# 设置已拥有武将列表（由Main调用设置）
+func set_owned_heroes(owned_heroes: Dictionary):
+	var container = get_node("RightContainer/ScrollContainer/VBoxContainer") as VBoxContainer
+	if not container:
+		push_error("找不到RightContainer/ScrollContainer/VBoxContainer")
+		return
+	
+	# 清空现有列表
+	for child in container.get_children():
+		child.queue_free()
+	
+	# 按稀有度排序添加
+	var rarity_order = [1, 2, 3, 4, 5]
+	for rarity in rarity_order:
+		for hero_id in owned_heroes:
+			var hero_data = owned_heroes[hero_id]
+			if hero_data.rarity == rarity:
+				_add_hero_button(hero_data, container)
+
+func _add_hero_button(hero_data: Dictionary, container: VBoxContainer):
+	# 获取稀有度颜色
+	var rarity_colors = [
+		Color(1, 1, 1),
+		Color(0, 1, 0),
+		Color(0, 0.5, 1),
+		Color(0.8, 0, 0.8),
+		Color(1, 0.5, 0)
+	]
+	
+	var btn = Button.new()
+	btn.name = "Hero_" + hero_data.id
+	btn.text = "%s (%s) - %s" % [hero_data.name, ["白", "绿", "蓝", "紫", "橙"][hero_data.rarity-1], "💪 " + str(hero_data.attack) + " / " + str(hero_data.defense)]
+	btn.custom_minimum_size = Vector2(0, 50)
+	btn.modulate = rarity_colors[hero_data.rarity-1]
+	btn.pressed.connect(_on_hero_selected.bind(hero_data, btn))
+	container.add_child(btn)
+
+func load_saved_lineup():
+	# 从SaveManager加载保存的阵容
+	var saved = SaveManager.load_lineup()
+	if saved and saved.size() == MAX_POSITION:
+		current_lineup = saved
+		for i in range(MAX_POSITION):
+			_update_cell_visual(i)
+		# 加载后更新IdleManager镇守属性
+		var total_attack: float = 0.0
+		var total_defense: float = 0.0
+		for h in current_lineup:
+			if h != null:
+				total_attack += float(h.get("attack", 0))
+				total_defense += float(h.get("defense", 0))
+		IdleManager.update_guard_stats(total_attack, total_defense)
+		print("已加载保存的阵容，更新镇守属性: 勇武 %.1f 智略 %.1f" % [total_attack, total_defense])
+	else:
+		# 空阵容，属性清零
+		IdleManager.update_guard_stats(0, 0)
+	print("已加载保存的阵容")
+
+func save_lineup():
+	# 保存到SaveManager
+	SaveManager.save_lineup(current_lineup)
+	print("阵容已保存")
+
+func update_bond_info():
+	if bond_details:
+		# 这里后续可以添加羁绊系统，现在先显示占位
+		var placed_count = 0
+		for h in current_lineup:
+			if h != null:
+				placed_count += 1
+		
+		if placed_count == 0:
+			bond_details.text = "尚未放置武将\n请点击左侧武将，然后点击九宫格空位放置"
+		elif placed_count < MAX_POSITION:
+			bond_details.text = "羁绊系统开发中...\n已放置 %d/%d 个武将" % [placed_count, MAX_POSITION]
+		else:
+			bond_details.text = "九宫格已满\n羁绊系统开发中..."
+
+func update_stats():
+	if stats_label:
+		var hero_count: int = 0
+		var total_attack: float = 0.0
+		var total_defense: float = 0.0
+		
+		for h in current_lineup:
+			if h != null:
+				hero_count += 1
+				total_attack += float(h.get("attack", 0))
+				total_defense += float(h.get("defense", 0))
+		
+		stats_label.text = "上阵: %d/%d\n总勇武: %.1f  |  总智略: %.1f" % [hero_count, MAX_POSITION, total_attack, total_defense]
+
+# 选中左侧武将
+func _on_hero_selected(hero_data: Dictionary, button: Button):
+	# 取消之前选中
+	if current_selected_button:
+		current_selected_button.disabled = false
+	
+	# 选中新的
+	selected_hero_id = hero_data.id
+	current_selected_button = button
+	current_selected_hero = hero_data
+	current_selected_button.disabled = true
+	
+	print("选中武将: " + hero_data.name)
+
+# 点击九宫格格子
+func _on_cell_pressed(index: int):
+	print("格子 ", index, " 被点击")
+	if selected_hero_id == "":
+		# 没有选中武将，如果格子有武将，移除它
+		if current_lineup[index] != null:
+			current_lineup[index] = null
+			_update_cell_visual(index)
+			update_bond_info()
+			update_stats()
+			print("移除了格子 ", index)
+		return
+	
+	# 实际上，_on_hero_selected 已经拿到了完整的 hero_data，我们已经保存了
+	if current_selected_hero != {}:
+		current_lineup[index] = current_selected_hero
+		_update_cell_visual(index)
+		update_bond_info()
+		update_stats()
+		print("放置武将 " + current_selected_hero.name + " 到格子 " + str(index))
 
 # 监听ESC快捷键返回
 func _input(event: InputEvent) -> void:
@@ -101,312 +308,71 @@ func _input(event: InputEvent) -> void:
 		if event.keycode == KEY_ESCAPE:
 			_on_back_clicked()
 
-# 创建九宫格
-func create_grid():
-	grid.columns = GRID_SIZE
-	grid_cells.resize(MAX_POSITION)
-	
+func _on_save_pressed():
+	save_lineup()
+	# 更新IdleManager镇守属性，影响钱粮兵产出
+	var total_attack: float = 0.0
+	var total_defense: float = 0.0
+	for h in current_lineup:
+		if h != null:
+			total_attack += float(h.get("attack", 0))
+			total_defense += float(h.get("defense", 0))
+	# 更新到IdleManager，勇武对应attack，智略对应defense
+	IdleManager.update_guard_stats(total_attack, total_defense)
+	lineup_saved.emit()
+	# 显示保存提示
+	print("阵容已保存，更新镇守属性: 勇武 %.1f 智略 %.1f" % [total_attack, total_defense])
+
+func _on_clear_pressed():
 	for i in range(MAX_POSITION):
-		# 每个格子是一个容器，包含背景纹理和点击按钮
-		var container = VBoxContainer.new()
-		container.name = "Container_%d" % i
-		container.custom_minimum_size = Vector2(90, 90)
-		container.spacing = 0
-		
-		# 头像纹理
-		var tex_rect = TextureRect.new()
-		tex_rect.name = "Portrait"
-		tex_rect.custom_minimum_size = Vector2(80, 80)
-		tex_rect.stretch_mode = 2  # STRETCH_MODE_KEEP_ASPECT_COVERED = 2
-		container.add_child(tex_rect)
-		
-		# 透明按钮接收点击
-		var cell = Button.new()
-		cell.name = "Cell_%d" % i
-		cell.custom_minimum_size = Vector2(80, 80)
-		cell.text = ""
-		cell.modulate = Color(1, 1, 1, 0.01)  # 几乎透明
-		cell.connect("pressed", Callable(self, "_on_cell_pressed").bind(i))
-		container.add_child(cell)
-		
-		grid.add_child(container)
-		grid_cells[i] = container
+		current_lineup[i] = null
+		_update_cell_visual(i)
+	if current_selected_button:
+		current_selected_button.disabled = false
+	selected_hero_id = ""
+	current_selected_button = null
+	update_bond_info()
+	update_stats()
+	# 清空后更新镇守属性为0
+	IdleManager.update_guard_stats(0, 0)
+	print("阵容已清空")
 
-# 加载武将列表
-func load_hero_list():
-	# 清空现有列表
-	if not hero_list:
-		return
-	
-	for child in hero_list.get_children():
-		child.queue_free()
-	
-	# 获取所有已拥有的武将
-	var owned_heroes = HeroLibrary.instance.get_hero_list()
-	print("LineupUI: 加载", owned_heroes.size(), "个已拥有武将")
-	
-	for hero_id in owned_heroes:
-		# 创建水平容器放按钮和状态切换
-		var hbox = HBoxContainer.new()
-		hbox.custom_minimum_size = Vector2(200, 40)
-		
-		# 武将选择按钮
-		var button = Button.new()
-		button.text = HeroLibrary.instance.get_hero_data(hero_id).get("name", "未知")
-		button.name = hero_id
-		button.custom_minimum_size = Vector2(120, 40)
-		button.connect("pressed", Callable(self, "_on_hero_selected").bind(hero_id))
-		hbox.add_child(button)
-		
-		# 状态切换按钮
-		var state_btn = Button.new()
-		state_btn.name = "StateBtn_" + hero_id
-		state_btn.custom_minimum_size = Vector2(70, 40)
-		_update_state_button_text(state_btn, hero_states[hero_id])
-		state_btn.connect("pressed", Callable(self, "_toggle_hero_state").bind(hero_id, state_btn))
-		hbox.add_child(state_btn)
-		
-		hero_list.add_child(hbox)
+func _on_back_clicked():
+	back_requested.emit()
 
-# 武将选择事件
-func _on_hero_selected(hero_id: String):
-	selected_hero_id = hero_id
-	print("LineupUI: 选择了武将：", hero_id)
-
-# 格子点击事件
-func _on_cell_pressed(position: int):
-	if selected_hero_id == "":
+func _update_cell_visual(index: int):
+	if not grid:
 		return
 	
-	if not grid_cells[position]:
-		return
-	
-	# 检查是否已经在阵容中
-	if current_lineup.find(selected_hero_id) != -1:
-		print("LineupUI: 该武将已经在阵容中")
-		return
-	
-	# 放置武将
-	current_lineup[position] = selected_hero_id
-	update_grid_cell(position)
-	if bond_details:
-		update_bond_display()
-
-# 更新格子显示
-func update_grid_cell(position: int):
-	if position < 0 or position >= MAX_POSITION:
-		return
-	
-	if not grid_cells[position]:
-		return
-	
-	var container = grid_cells[position]
-	var portrait = container.get_node_or_null("Portrait")
-	var cell_btn = container.get_node_or_null("Cell_%d" % position) % position
-	var hero_id = current_lineup[position]
-	
-	if hero_id and portrait:
-		var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
-		# 加载头像纹理
-		if hero_data.has("image_path") and portrait:
-			var tex = load(hero_data.image_path)
+	var container = grid.get_child(index)
+	if container:
+		var tex_rect = container.get_node("Portrait") as TextureRect
+		var hero = current_lineup[index]
+		
+		if hero is Dictionary and hero.has("id"):
+			# 根据id加载头像纹理
+			var image_path = "res://assets/images/%s.png" % hero.id
+			var tex = load(image_path)
 			if tex:
-				portrait.texture = tex
-				# 根据势力染色边框
-				var faction = hero_data.get("faction", "")
-				match faction:
-					"wei": portrait.modulate = Color(0, 0.5, 1)  # 蓝色-魏国
-					"shu": portrait.modulate = Color(0.8, 0, 0)  # 红色-蜀国
-					"wu": portrait.modulate = Color(0, 0.7, 0)   # 绿色-吴国
-					"qun": portrait.modulate = Color(0.7, 0, 0.7) # 紫色-群雄
+				tex_rect.texture = tex
+				tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+				# 根据稀有度上色
+				var rarity_colors = [
+					Color(1, 1, 1),
+					Color(0, 1, 0),
+					Color(0, 0.5, 1),
+					Color(0.8, 0, 0.8),
+					Color(1, 0.5, 0)
+				]
+				tex_rect.modulate = rarity_colors[hero.rarity-1]
+			else:
+				# 加载失败，显示一个占位色块
+				tex_rect.texture = null
+				# 设置一个背景色（临时）
+				tex_rect.add_theme_stylebox_override("panel", StyleBoxFlat.new())
+				var placeholder_style = tex_rect.get_theme_stylebox("panel")
+				if placeholder_style is StyleBoxFlat:
+					placeholder_style.bg_color = Color(0.5, 0.5, 0.5)
+				push_error("无法加载头像: " + image_path)
 		else:
-			portrait.texture = null
-			portrait.modulate = Color(1, 1, 1)
-	else:
-		if portrait:
-			portrait.texture = null
-			portrait.modulate = Color(1, 1, 1)
-
-# 更新所有格子
-func update_all_cells():
-	for i in range(MAX_POSITION):
-		update_grid_cell(i)
-
-# 保存阵容
-func save_lineup():
-	# 保存到存档系统（临时打印）
-	print("LineupUI: 保存阵容：", current_lineup)
-	# TODO: 调用存档系统保存
-	# SaveManager.instance.save_data()
-
-# 加载阵容
-func load_lineup():
-	# 从存档系统加载（临时初始化）
-	# TODO: 调用存档系统加载
-	current_lineup.fill(null)
-	update_all_cells()
-
-# 获取当前阵容
-func get_current_lineup() -> Array:
-	return current_lineup.duplicate()
-
-# 获取上阵武将总战力
-func get_total_combat_power() -> float:
-	var total: float = 0.0
-	for hero_id in current_lineup:
-		if hero_id:
-			var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
-			# 战力计算：攻击*0.4 + 防御*0.3
-			var power = hero_data.get("attack", 0) * 0.4 + \
-						hero_data.get("defense", 0) * 0.3
-			total += power * (1 + hero_data.get("rarity", 1) * 0.2)  # 稀有度加成
-	return total
-
-# 获取上阵武将按势力分组
-func get_heroes_by_faction() -> Dictionary:
-	var factions = {
-		"wei": 0,
-		"shu": 0,
-		"wu": 0,
-		"qun": 0
-	}
-	
-	for hero_id in current_lineup:
-		if hero_id:
-			var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
-			var faction = hero_data.get("faction", "")
-			if factions.has(faction):
-				factions[faction] += 1
-	
-	return factions
-
-# 更新羁绊显示
-func update_bond_display():
-	if not bond_details:
-		return
-	
-	# 获取势力统计
-	var factions = get_heroes_by_faction()
-	var active_bonds = BondManager.instance.get_active_bonds(factions)
-	
-	if active_bonds.is_empty():
-		bond_details.text = "暂无羁绊激活"
-		return
-	
-	var text: String = ""
-	for bond in active_bonds:
-		text += "✅ " + bond.name + ": " + bond.description + "\n"
-	
-	bond_details.text = text
-	# 更新全局羁绊加成
-	BondManager.instance.calculate_all_bonuses(factions)
-
-# 切换武将状态
-func _toggle_hero_state(hero_id: String, button: Button):
-	var current_state = hero_states[hero_id]
-	if current_state == "upfront":
-		hero_states[hero_id] = "guard"
-	else:
-		hero_states[hero_id] = "upfront"
-	# 更新按钮文字
-	_update_state_button_text(button, hero_states[hero_id])
-	# 重新计算统计
-	update_stats_display()
-	stats_updated.emit()
-	print("[LineupUI] 切换 %s 状态 -> %s" % [hero_id, hero_states[hero_id]])
-
-# 更新状态按钮文字
-func _update_state_button_text(button: Button, state: String):
-	if state == "upfront":
-		button.text = "⚔️上阵"
-		button.add_theme_color_override("font_color", Color(0, 1, 0))
-	else:
-		button.text = "🏯镇守"
-		button.add_theme_color_override("font_color", Color(1, 0.8, 0))
-
-# 更新统计显示
-func update_stats_display():
-	if not stats_label:
-		return
-	
-	var stats = calculate_total_stats()
-	var text = "上阵: %d/%d  |  镇守槽: %d/%d\n" % [stats.upfront_count, get_max_upfront(), stats.guard_count, get_max_guard_slots()]
-	text += "总勇武（镇守）: %.1f  |  总智略（镇守）: %.1f" % [stats.total_guard_bravery, stats.total_guard_wisdom]
-	stats_label.text = text
-	
-	# 更新IdleManager的镇守属性
-	IdleManager.instance.update_guard_stats(stats.total_guard_bravery, stats.total_guard_wisdom)
-
-# 计算总统计：上阵数量、镇守数量、总勇武、总智略
-func calculate_total_stats() -> Dictionary:
-	var result = {
-		"upfront_count": 0,
-		"guard_count": 0,
-		"total_guard_bravery": 0.0,
-		"total_guard_wisdom": 0.0
-	}
-	
-	# 遍历所有已拥有武将，按状态统计
-	var owned_heroes = HeroLibrary.instance.get_hero_list()
-	for hero_id in owned_heroes:
-		var state = hero_states.get(hero_id, "upfront")
-		var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
-		
-		if state == "upfront":
-			result.upfront_count += 1
-		else:
-			result.guard_count += 1
-			# 镇守武将贡献属性
-			# force = 勇武（武力），intelligence = 智略（智力）
-			if hero_data.has("force"):
-				result.total_guard_bravery += hero_data.force
-			if hero_data.has("intelligence"):
-				result.total_guard_wisdom += hero_data.intelligence
-	
-	return result
-
-# 获取最大上阵人数
-func get_max_upfront() -> int:
-	return MAX_UPFRONT
-
-# 获取最大镇守槽位
-func get_max_guard_slots() -> int:
-	return RegionManager.instance.get_available_guard_slots()
-
-# 检查是否可以切换到upfront（是否超过上限）
-func can_switch_to_upfront() -> bool:
-	var stats = calculate_total_stats()
-	return stats.upfront_count < get_max_upfront()
-
-# 检查是否可以切换到guard（是否超过上限）
-func can_switch_to_guard() -> bool:
-	var stats = calculate_total_stats()
-	return stats.guard_count < get_max_guard_slots()
-
-# 获取上阵总勇武+智略（用于攻城进度）
-func get_total_progress_stats() -> Dictionary:
-	var result = {
-		"total_bravery": 0.0,
-		"total_wisdom": 0.0
-	}
-	
-	# 遍历所有已拥有武将，只统计上阵
-	var owned_heroes = HeroLibrary.instance.get_hero_list()
-	for hero_id in owned_heroes:
-		var state = hero_states.get(hero_id, "upfront")
-		var hero_data = HeroLibrary.instance.get_hero_data(hero_id)
-		
-		if state == "upfront":
-			# force = 勇武（武力），intelligence = 智略（智力）
-			if hero_data.has("force"):
-				result.total_bravery += hero_data.force
-			if hero_data.has("intelligence"):
-				result.total_wisdom += hero_data.intelligence
-	
-	return result
-
-# 刷新武将列表（武将库变化时调用）
-func refresh_hero_list():
-	if hero_list:
-		load_hero_list()
-	update_stats_display()
+			tex_rect.texture = null

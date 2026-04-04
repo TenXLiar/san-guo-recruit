@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bhqwejjhkvuuk"
-valid=false
+uid="uid://2klnml0krq61"
+path="res://.godot/imported/shu_zhangfei.png-c8ee6da031e9289e981ae56b8ac96924.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/shu_zhangfei.png"
+dest_files=["res://.godot/imported/shu_zhangfei.png-c8ee6da031e9289e981ae56b8ac96924.ctex"]
 
 [params]
 

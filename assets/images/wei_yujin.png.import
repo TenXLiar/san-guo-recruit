@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b512e5bdrwnuk"
-valid=false
+uid="uid://b5vnjoeo1p8o6"
+path="res://.godot/imported/wei_yujin.png-70f16e94a9d0220b6fb19b5d608b4c22.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wei_yujin.png"
+dest_files=["res://.godot/imported/wei_yujin.png-70f16e94a9d0220b6fb19b5d608b4c22.ctex"]
 
 [params]
 

@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6clai0kj86lm"
-valid=false
+uid="uid://bolm4hs3y4edf"
+path="res://.godot/imported/wu_ganning.png-3cce0172b208a44d6b90ee977c3059a7.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wu_ganning.png"
+dest_files=["res://.godot/imported/wu_ganning.png-3cce0172b208a44d6b90ee977c3059a7.ctex"]
 
 [params]
 

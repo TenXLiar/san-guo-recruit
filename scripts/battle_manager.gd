@@ -15,13 +15,13 @@ enum BattleState {
 var current_state: BattleState = BattleState.IDLE
 
 # 战斗配置
-const BASE_SKILL_RATE: float = 0.2  # 基础技能触发概率
-const BASE_CRIT_RATE: float = 0.05  # 基础暴击率
-const BASE_CRIT_DAMAGE: float = 1.5  # 基础暴击伤害
+const BASE_SKILL_RATE: float = 0.2
+const BASE_CRIT_RATE: float = 0.05
+const BASE_CRIT_DAMAGE: float = 1.5
 
 # 战斗回调
-signal battle_finished(victory: bool, report: Array)  # 战斗结束信号
-signal round_finished(round: int, events: Array)  # 回合结束信号
+signal battle_finished(victory: bool, report: Array)
+signal round_finished(round: int, events: Array)
 
 func _init():
 	if instance == null:
@@ -29,49 +29,68 @@ func _init():
 	else:
 		queue_free()
 
-# 开始战斗
-# attacker: 攻击方阵容（武将ID数组）
-# defender: 防守方阵容（武将ID数组）
-# 返回战斗结果
-func start_battle(attacker_lineup: Array, defender_lineup: Array) -> Dictionary:
-	current_state = BattleState.PREPARING
-	
-	print("=====================================")
-	print("⚔️  [战斗系统] 战斗开始")
-	print("   攻击方阵容人数：", attacker_lineup.count(func(id): return id != null))
-	print("   防守方阵容人数：", defender_lineup.count(func(id): return id != null))
-	
-	# 初始化战斗单位
-	var attacker_units = _init_battle_units(attacker_lineup, true)
-	var defender_units = _init_battle_units(defender_lineup, false)
-	
-	# 获取羁绊效果
-	var attacker_buffs = BondManager.instance.get_total_bond_effects(attacker_lineup)
-	var defender_buffs = BondManager.instance.get_total_bond_effects(defender_lineup)
-	
-	print("   🎁 攻击方羁绊加成：", attacker_buffs)
-	print("   🎁 防守方羁绊加成：", defender_buffs)
+# ---------- 辅助函数 ----------
+func _normalize_hero_id(hero_id) -> String:
+	if typeof(hero_id) == TYPE_STRING:
+		return hero_id
+	elif typeof(hero_id) == TYPE_DICTIONARY:
+		return hero_id.get("id", hero_id.get("hero_id", ""))
+	else:
+		return ""
+
+# 开始战斗（返回战斗控制器）
+func start_battle(attacker_lineup: Array, defender_lineup: Array) -> BattleController:
+	var controller = BattleController.new()
+	controller.attacker_units = _init_battle_units(attacker_lineup, true)
+	controller.defender_units = _init_battle_units(defender_lineup, false)
+	controller.round = 0
+	controller.finished = false
+	controller.victory = false
+	controller.report = []
+	controller.max_rounds = 50
+	controller.manager = self  # 传递管理器引用，以便调用私有方法
 	
 	# 应用羁绊效果
-	_apply_buffs(attacker_units, attacker_buffs)
-	_apply_buffs(defender_units, defender_buffs)
+	var attacker_buffs = BondManager.instance.get_total_bond_effects(attacker_lineup)
+	var defender_buffs = BondManager.instance.get_total_bond_effects(defender_lineup)
+	_apply_buffs(controller.attacker_units, attacker_buffs)
+	_apply_buffs(controller.defender_units, defender_buffs)
 	
-	current_state = BattleState.FIGHTING
-	var battle_report = []
-	var round = 0
-	var max_rounds = 50  # 最大回合数，防止无限战斗
+	print("=====================================")
+	print("⚔️  [战斗系统] 战斗开始（逐步模式）")
+	print("   攻击方人数：", len(controller.attacker_units))
+	print("   防守方人数：", len(controller.defender_units))
+	print("=====================================")
 	
-	while current_state == BattleState.FIGHTING and round < max_rounds:
+	return controller
+
+# 战斗控制器类
+class BattleController:
+	var attacker_units: Array = []
+	var defender_units: Array = []
+	var round: int = 0
+	var finished: bool = false
+	var victory: bool = false
+	var report: Array = []
+	var max_rounds: int = 50
+	var manager: Node = null  # 引用 BattleManager 实例
+	
+	func take_turn() -> Array:
+		if finished:
+			return []
+		
 		round += 1
 		var round_events = []
 		
-		# 回合开始：处理持续伤害和buff/debuff回合递减
-		var pre_round_events = _process_round_start_effects(attacker_units, defender_units)
+		# 回合开始效果（燃烧、眩晕等）
+		var pre_round_events = manager._process_round_start_effects(attacker_units, defender_units)
 		round_events.append_array(pre_round_events)
 		
-		# 检查是否战斗已经结束
-		if _count_alive_units(attacker_units) == 0 or _count_alive_units(defender_units) == 0:
-			break
+		# 检查是否结束
+		if _check_finished():
+			finished = true
+			manager.round_finished.emit(round, round_events)
+			return round_events
 		
 		# 合并双方单位，按速度排序
 		var all_units = []
@@ -79,77 +98,67 @@ func start_battle(attacker_lineup: Array, defender_lineup: Array) -> Dictionary:
 		all_units.append_array(defender_units)
 		all_units.sort_custom(func(a, b): return a.speed > b.speed)
 		
-		# 每个单位行动
 		for unit in all_units:
 			if unit.hp <= 0:
-				print("      ⚰️ %s 已经阵亡，跳过行动" % unit.name)
 				continue
+			if _check_finished():
+				break
 			
-			# 检查眩晕
+			# 眩晕判定
 			if unit.debuffs.has("stun") and unit.debuffs["stun"] > 0:
-				print("      😵‍💫 %s 被眩晕，跳过行动" % unit.name)
 				unit.debuffs["stun"] -= 1
 				if unit.debuffs["stun"] <= 0:
 					unit.debuffs.erase("stun")
 				continue
 			
-			# 检查是否还有存活的敌方
-			if _count_alive_units(attacker_units) == 0 or _count_alive_units(defender_units) == 0:
-				break
-			
-			# 决定行动：普攻或技能
-			var skill_rate = BASE_SKILL_RATE + unit.buffs.get("skill_rate_buff", 0)
+			# 技能判定
+			var skill_rate = manager.BASE_SKILL_RATE + unit.buffs.get("skill_rate_buff", 0)
 			var use_skill = randf() < skill_rate
-			
-			print("      🎯 回合%d：%s 行动，技能概率%.2f%%，是否使用技能：%s" % [
-				round, unit.name, skill_rate * 100, str(use_skill)
-			])
-			
+			var event
 			if use_skill:
-				var event = _use_skill(unit, attacker_units, defender_units)
-				round_events.append(event)
-				if event.message != "":
-					print("         📜 %s" % event.message)
+				event = manager._use_skill(unit, attacker_units, defender_units)
 			else:
-				var event = _normal_attack(unit, attacker_units, defender_units)
-				round_events.append(event)
-				print("         📜 %s" % event.message)
+				event = manager._normal_attack(unit, attacker_units, defender_units)
+			round_events.append(event)
 		
 		# 回合结束
-		round_finished.emit(round, round_events)
-		battle_report.append({
-			"round": round,
-			"events": round_events
-		})
+		manager.round_finished.emit(round, round_events)
+		report.append({"round": round, "events": round_events})
 		
 		# 检查战斗是否结束
-		if _count_alive_units(attacker_units) == 0 or _count_alive_units(defender_units) == 0:
-			break
+		if _check_finished():
+			finished = true
+			# 计算胜负
+			var attacker_alive = manager._count_alive_units(attacker_units) > 0
+			var defender_alive = manager._count_alive_units(defender_units) > 0
+			victory = attacker_alive and not defender_alive
+			
+			print("🏁 [战斗结束] 结果：")
+			print("   总回合数：%d" % round)
+			print("   攻击方存活：%d" % manager._count_alive_units(attacker_units))
+			print("   防守方存活：%d" % manager._count_alive_units(defender_units))
+			print("   战斗结果：%s" % ("攻击方胜利" if victory else "防守方胜利"))
+			
+			manager.battle_finished.emit(victory, report)
+		
+		return round_events
 	
-	current_state = BattleState.FINISHED
+	func is_finished() -> bool:
+		return finished
 	
-	# 计算胜负
-	var attacker_alive = _count_alive_units(attacker_units) > 0
-	var defender_alive = _count_alive_units(defender_units) > 0
-	var victory = attacker_alive and not defender_alive
+	func get_result() -> Dictionary:
+		return {
+			"victory": victory,
+			"rounds": round,
+			"report": report,
+			"attacker_alive": manager._count_alive_units(attacker_units),
+			"defender_alive": manager._count_alive_units(defender_units)
+		}
 	
-	print("🏁 [战斗结束] 结果：")
-	print("   总回合数：%d" % round)
-	print("   攻击方存活：%d / %d" % [_count_alive_units(attacker_units), attacker_units.size()])
-	print("   防守方存活：%d / %d" % [_count_alive_units(defender_units), defender_units.size()])
-	var result_text = "攻击方胜利" if victory else "防守方胜利"
-	print("   战斗结果：%s" % result_text)
-	print("=====================================")
-	
-	battle_finished.emit(victory, battle_report)
-	
-	return {
-		"victory": victory,
-		"rounds": round,
-		"report": battle_report,
-		"attacker_remaining": _count_alive_units(attacker_units),
-		"defender_remaining": _count_alive_units(defender_units)
-	}
+	func _check_finished() -> bool:
+		var attacker_alive = manager._count_alive_units(attacker_units) > 0
+		var defender_alive = manager._count_alive_units(defender_units) > 0
+		return not attacker_alive or not defender_alive or round >= max_rounds
 
 # 初始化战斗单位
 func _init_battle_units(lineup: Array, is_attacker: bool) -> Array:
@@ -159,8 +168,9 @@ func _init_battle_units(lineup: Array, is_attacker: bool) -> Array:
 	
 	print("   📋 [初始化%s] 开始初始化单位：" % side)
 	
-	for hero_id in lineup:
-		if not hero_id:
+	for raw_id in lineup:
+		var hero_id = _normalize_hero_id(raw_id)
+		if hero_id == "":
 			position += 1
 			continue
 		
@@ -169,13 +179,12 @@ func _init_battle_units(lineup: Array, is_attacker: bool) -> Array:
 			position += 1
 			continue
 		
-		# 计算属性
 		var force = hero_data.get("force", 50)
 		var intelligence = hero_data.get("intelligence", 50)
-		var hp = force * 10 + intelligence * 5  # 生命值
-		var attack = force * 2  # 攻击力
-		var defense = force * 0.5 + intelligence * 0.3  # 防御
-		var speed = force * 0.3 + intelligence * 0.7  # 速度
+		var hp = force * 10 + intelligence * 5
+		var attack = force * 2
+		var defense = force * 0.5 + intelligence * 0.3
+		var speed = force * 0.3 + intelligence * 0.7
 		
 		var unit = {
 			"id": hero_id,
@@ -216,11 +225,14 @@ func _apply_buffs(units: Array, buffs: Dictionary):
 				unit.buffs[buff_name] += value
 			else:
 				unit.buffs[buff_name] = value
-			print("      ➕ %s：%s += %.2f" % [unit.name, buff_name, value])
+			
+			if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
+				print("      ➕ %s：%s += %.2f" % [unit.name, buff_name, value])
+			else:
+				print("      ➕ %s：%s += %s" % [unit.name, buff_name, str(value)])
 
 # 普通攻击
 func _normal_attack(attacker: Dictionary, attacker_units: Array, defender_units: Array) -> Dictionary:
-	# 选择目标：敌方前排随机一个
 	var target = _select_front_target(defender_units if attacker.is_attacker else attacker_units)
 	if not target:
 		return {
@@ -231,10 +243,10 @@ func _normal_attack(attacker: Dictionary, attacker_units: Array, defender_units:
 			"message": "%s攻击，但没有目标" % attacker.name
 		}
 	
-	# 计算伤害
-	var damage = _calculate_damage(attacker, target)
+	var damage_result = _calculate_damage(attacker, target)
+	var damage = damage_result.damage
+	var is_crit = damage_result.is_crit
 	
-	# 应用伤害
 	target.hp -= damage
 	target.hp = max(target.hp, 0)
 	
@@ -243,7 +255,7 @@ func _normal_attack(attacker: Dictionary, attacker_units: Array, defender_units:
 		"attacker": attacker.name,
 		"target": target.name,
 		"damage": damage,
-		"is_crit": damage.is_crit,
+		"is_crit": is_crit,
 		"message": "%s对%s造成%d点伤害" % [attacker.name, target.name, damage]
 	}
 
@@ -258,15 +270,12 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 	var heal_total = 0
 	var message = ""
 	
-	# 根据技能类型选择目标并执行
 	match skill.get("type", "damage"):
 		"damage":
-			# 伤害类技能
 			targets = _select_skill_targets(skill, attacker, attacker_units, defender_units)
-			
-			# 对目标造成伤害
 			for target in targets:
-				var damage = _calculate_damage(attacker, target, skill.get("damage_multiplier", 1.0))
+				var damage_result = _calculate_damage(attacker, target, skill.get("damage_multiplier", 1.0))
+				var damage = damage_result.damage
 				target.hp -= damage
 				target.hp = max(target.hp, 0)
 				damage_total += damage
@@ -288,7 +297,6 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 					message += "%s防御降低%d%%；" % [target.name, skill.defense_debuff * 100]
 			
 			if skill.has("self_hp_cost"):
-				# 自伤类技能
 				var cost = attacker.hp * skill.self_hp_cost
 				attacker.hp -= cost
 				message += "%s消耗%.0f点生命值；" % [attacker.name, cost]
@@ -301,7 +309,6 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 				message += "%s伤害减免提升%d%%；" % [attacker.name, skill.damage_reduction * 100]
 			
 			if skill.has("attack_buff") and skill.get("duration", 0) > 0:
-				# 己方群体攻击buff
 				var ally_units = _get_all_alive_units(attacker_units)
 				if skill.get("target") == "all_ally_wei":
 					ally_units = ally_units.filter(func(u): return u.faction == "wei")
@@ -320,7 +327,6 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 					message += "%s攻击提升%d%%；" % [unit.name, skill.attack_buff * 100]
 			
 			if skill.has("skill_rate_buff") and skill.get("duration", 0) > 0:
-				# 技能触发概率buff
 				var ally_units = _get_all_alive_units(attacker_units)
 				if skill.get("target") == "all_ally_wu":
 					ally_units = ally_units.filter(func(u): return u.faction == "wu")
@@ -333,7 +339,6 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 					message += "%s技能概率提升%d%%；" % [unit.name, skill.skill_rate_buff * 100]
 			
 			if skill.has("burn_damage") and skill.get("burn_duration", 0) > 0:
-				# 燃烧效果
 				for target in targets:
 					if not target.debuffs.has("burn"):
 						target.debuffs["burn"] = []
@@ -344,7 +349,6 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 					message += "%s被燃烧，持续%d回合；" % [target.name, skill.burn_duration]
 		
 		"heal":
-			# 治疗类技能
 			var ally_units = _get_all_alive_units(attacker_units)
 			match skill.get("target", "all_ally"):
 				"all_ally":
@@ -369,9 +373,7 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 					message += "%s防御提升%d%%；" % [unit.name, skill.defense_buff * 100]
 		
 		"buff":
-			# 增益类技能
 			var ally_units = _get_all_alive_units(attacker_units)
-			# 根据目标筛选
 			if skill.get("target") == "all_ally_wei":
 				ally_units = ally_units.filter(func(u): return u.faction == "wei")
 			elif skill.get("target") == "all_ally_shu":
@@ -381,7 +383,7 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 			elif skill.get("target") == "all_ally_qun":
 				ally_units = ally_units.filter(func(u): return u.faction == "qun")
 			elif skill.get("target") == "all_ally":
-				pass # 已经是所有
+				pass
 			
 			targets = ally_units
 			
@@ -411,40 +413,36 @@ func _use_skill(attacker: Dictionary, attacker_units: Array, defender_units: Arr
 		"message": message
 	}
 
-# 计算伤害
-func _calculate_damage(attacker: Dictionary, target: Dictionary, multiplier: float = 1.0) -> float:
-	# 基础伤害 = 攻击 × 倍率
+# 计算伤害（返回字典）
+func _calculate_damage(attacker: Dictionary, target: Dictionary, multiplier: float = 1.0) -> Dictionary:
 	var base_damage = attacker.attack * multiplier
-	
-	# 攻击加成
 	var attack_buff = attacker.buffs.get("attack_buff", 0)
 	base_damage *= (1 + attack_buff)
 	
-	# 防御减伤 + 防御debuff
 	var defense = target.defense
 	var defense_debuff = target.debuffs.get("defense_debuff", 0)
 	defense *= (1 - defense_debuff)
 	var defense_reduction = defense / (defense + 100)
 	var damage = base_damage * (1 - defense_reduction)
 	
-	# 伤害减免
 	var damage_reduction = target.buffs.get("damage_reduction", 0)
 	damage *= (1 - damage_reduction)
 	
-	# 暴击判定
 	var crit_rate = BASE_CRIT_RATE + attacker.buffs.get("crit_buff", 0)
 	var is_crit = randf() < crit_rate
-	# 技能必定暴击
 	if attacker.skill.has("critical") and attacker.skill.critical:
 		is_crit = true
 	if is_crit:
 		damage *= BASE_CRIT_DAMAGE
 	
-	# 随机浮动±5%
 	var random_factor = 0.95 + randf() * 0.1
 	damage *= random_factor
+	damage = round(max(damage, 1))
 	
-	return round(max(damage, 1))
+	return {
+		"damage": damage,
+		"is_crit": is_crit
+	}
 
 # 选择前排目标
 func _select_front_target(units: Array) -> Dictionary:
@@ -453,22 +451,18 @@ func _select_front_target(units: Array) -> Dictionary:
 		return _select_random_target(units)
 	return front_units[randi() % front_units.size()]
 
-# 获取前排单位（位置0-2）
 func _get_front_units(units: Array) -> Array:
 	return units.filter(func(u): return u.hp > 0 and u.position < 3)
 
-# 获取后排单位（位置6-8）
 func _get_back_units(units: Array) -> Array:
 	return units.filter(func(u): return u.hp > 0 and u.position >= 6)
 
-# 选择随机目标
 func _select_random_target(units: Array) -> Dictionary:
 	var alive = _get_all_alive_units(units)
 	if alive.is_empty():
 		return {}
 	return alive[randi() % alive.size()]
 
-# 根据技能配置选择目标
 func _select_skill_targets(skill: Dictionary, attacker: Dictionary, attacker_units: Array, defender_units: Array) -> Array:
 	var enemies = defender_units if attacker.is_attacker else attacker_units
 	var allies = attacker_units if attacker.is_attacker else defender_units
@@ -486,7 +480,6 @@ func _select_skill_targets(skill: Dictionary, attacker: Dictionary, attacker_uni
 		"all_enemy":
 			targets = _get_all_alive_units(enemies)
 		"random_enemy":
-			# 随机选择N个目标
 			var alive_enemies = _get_all_alive_units(enemies)
 			var count = skill.get("target_count", 2)
 			for i in range(count):
@@ -497,7 +490,6 @@ func _select_skill_targets(skill: Dictionary, attacker: Dictionary, attacker_uni
 	
 	return targets
 
-# 处理回合开始前的持续效果（燃烧、debuff递减等）
 func _process_round_start_effects(attacker_units: Array, defender_units: Array) -> Array:
 	var events = []
 	var all_units = []
@@ -508,10 +500,8 @@ func _process_round_start_effects(attacker_units: Array, defender_units: Array) 
 		if unit.hp <= 0:
 			continue
 		
-		# 处理燃烧伤害
 		if unit.debuffs.has("burn"):
 			var burn_damage = 0
-			# 反向遍历，移除已结束的燃烧
 			for i in range(unit.debuffs["burn"].size() - 1, -1, -1):
 				var burn = unit.debuffs["burn"][i]
 				var damage = unit.max_hp * burn.damage_percent
@@ -533,7 +523,6 @@ func _process_round_start_effects(attacker_units: Array, defender_units: Array) 
 					"message": "%s受到燃烧伤害%.0f点" % [unit.name, burn_damage]
 				})
 		
-		# 处理眩晕：如果有眩晕，本回合不能行动（这里直接减少一回合）
 		if unit.debuffs.has("stun"):
 			unit.debuffs["stun"] -= 1
 			if unit.debuffs["stun"] <= 0:
@@ -546,10 +535,8 @@ func _process_round_start_effects(attacker_units: Array, defender_units: Array) 
 	
 	return events
 
-# 获取所有存活单位
 func _get_all_alive_units(units: Array) -> Array:
 	return units.filter(func(u): return u.hp > 0)
 
-# 统计存活单位数量
 func _count_alive_units(units: Array) -> int:
 	return _get_all_alive_units(units).size()

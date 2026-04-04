@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clcpcah5nmdod"
-valid=false
+uid="uid://bhy25cuo6s3hr"
+path="res://.godot/imported/wei_caoren.png-7d9dad6564b2a459898887d47b73f412.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wei_caoren.png"
+dest_files=["res://.godot/imported/wei_caoren.png-7d9dad6564b2a459898887d47b73f412.ctex"]
 
 [params]
 

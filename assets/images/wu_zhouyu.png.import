@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ctv7hq005x4mh"
-valid=false
+uid="uid://b165u4gdqjgy5"
+path="res://.godot/imported/wu_zhouyu.png-840c315ca1cc72e1b62b3c7fd5db00a2.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wu_zhouyu.png"
+dest_files=["res://.godot/imported/wu_zhouyu.png-840c315ca1cc72e1b62b3c7fd5db00a2.ctex"]
 
 [params]
 

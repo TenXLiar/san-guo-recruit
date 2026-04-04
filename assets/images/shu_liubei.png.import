@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c5p7kbu0ltjht"
-valid=false
+uid="uid://wiqpk4ni36o7"
+path="res://.godot/imported/shu_liubei.png-69e44d3b4c7036cb2bfffabf65d346fd.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/shu_liubei.png"
+dest_files=["res://.godot/imported/shu_liubei.png-69e44d3b4c7036cb2bfffabf65d346fd.ctex"]
 
 [params]
 

@@ -54,10 +54,10 @@ config/handheld/orientation="landscape"
 [autoload]
 
 IdleManager="*res://scripts/idle_manager.gd"
-HeroLibrary="*res://scripts/hero_library.gd"
+HeroLibrary="*res://scripts/HeroLibrary.gd"
 BondManager="*res://scripts/bond_manager.gd"
 BattleManager="*res://scripts/battle_manager.gd"
-PvPManager="*res://scripts/pvp_manager.gd"
+pvp_manager="*res://scripts/pvp_manager.gd"
 SaveManager="*res://scripts/save_manager.gd"
 RegionManager="*res://autoload/region_manager.gd"
 ProgressManager="*res://autoload/progress_manager.gd"
@@ -86,6 +86,7 @@ window/stretch/max_scale=8.0
 
 [editor]
 
+version_control/autoload_on_startup=true
 main_window_layout/restore_from_session=true
 main_window_layout/save_session_on_exit=true
 main_window_layout/confirm_on_exit=true

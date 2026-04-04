@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8aasx281a7fi"
-valid=false
+uid="uid://dkwkj7ixr6ejd"
+path="res://.godot/imported/qun_lvbu.png-4fabd1f3cfb633bf385922ececbca927.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/qun_lvbu.png"
+dest_files=["res://.godot/imported/qun_lvbu.png-4fabd1f3cfb633bf385922ececbca927.ctex"]
 
 [params]
 

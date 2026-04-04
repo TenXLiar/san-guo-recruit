@@ -136,11 +136,46 @@ func load_game() -> Dictionary:
 	save_loaded.emit()
 	return save_data
 
+# 保存阵容
+func save_lineup(lineup_data: Array) -> bool:
+	# 阵容数据保存在单独的文件
+	var lineup_path = "user://sanguo_lineup.save"
+	var file = FileAccess.open(lineup_path, FileAccess.WRITE)
+	if not file:
+		print("[SaveManager] 阵容保存失败：无法打开文件")
+		return false
+	
+	file.store_var(lineup_data)
+	file.close()
+	print("[SaveManager] 阵容保存成功")
+	return true
+
+# 加载阵容
+func load_lineup() -> Array:
+	var lineup_path = "user://sanguo_lineup.save"
+	if not FileAccess.file_exists(lineup_path):
+		print("[SaveManager] 没有保存的阵容，返回空数组")
+		return []
+	
+	var file = FileAccess.open(lineup_path, FileAccess.READ)
+	if not file:
+		print("[SaveManager] 阵容加载失败：无法打开文件")
+		return []
+	
+	var loaded = file.get_var()
+	file.close()
+	print("[SaveManager] 阵容加载成功：%d 个武将" % loaded.count(func(h): return h != null))
+	return loaded
+
 # 删除存档
 func delete_save() -> bool:
 	if FileAccess.file_exists(save_path):
 		DirAccess.remove_absolute(save_path)
 		print("[SaveManager] 存档已删除")
+		# 同时删除阵容文件
+		var lineup_path = "user://sanguo_lineup.save"
+		if FileAccess.file_exists(lineup_path):
+			DirAccess.remove_absolute(lineup_path)
 		return true
 	return false
 

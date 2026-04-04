@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dljm8lciosq6w"
-valid=false
+uid="uid://bi3xa3cb5ddg4"
+path="res://.godot/imported/qun_diaochan.png-89723b4927ff39b94d13a30ad4371ae5.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/qun_diaochan.png"
+dest_files=["res://.godot/imported/qun_diaochan.png-89723b4927ff39b94d13a30ad4371ae5.ctex"]
 
 [params]
 

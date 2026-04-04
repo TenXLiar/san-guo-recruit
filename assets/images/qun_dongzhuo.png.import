@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://betcxrkdhvt7g"
-valid=false
+uid="uid://bv4prixm45gy5"
+path="res://.godot/imported/qun_dongzhuo.png-c461cb49925eda8d867b2320a8fb4a52.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/qun_dongzhuo.png"
+dest_files=["res://.godot/imported/qun_dongzhuo.png-c461cb49925eda8d867b2320a8fb4a52.ctex"]
 
 [params]
 

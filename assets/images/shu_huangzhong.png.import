@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://coqch7j3qs800"
-valid=false
+uid="uid://dlchxlsfgggs8"
+path="res://.godot/imported/shu_huangzhong.png-bd06a7e747a8fc65777be168c198e9c6.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/shu_huangzhong.png"
+dest_files=["res://.godot/imported/shu_huangzhong.png-bd06a7e747a8fc65777be168c198e9c6.ctex"]
 
 [params]
 

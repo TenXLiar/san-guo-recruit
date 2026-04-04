@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bgugmsqroqlxt"
-valid=false
+uid="uid://b4e4883kju5ic"
+path="res://.godot/imported/wu_lvmeng.png-41966d2ceff210819cb6cb71f20b13bb.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wu_lvmeng.png"
+dest_files=["res://.godot/imported/wu_lvmeng.png-41966d2ceff210819cb6cb71f20b13bb.ctex"]
 
 [params]
 

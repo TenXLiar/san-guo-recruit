@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cb80npwn7owht"
-valid=false
+uid="uid://dlk7yibfs8hyv"
+path="res://.godot/imported/wei_xiahouyuan.png-1fef2aa087783c88845a6146825d48c4.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wei_xiahouyuan.png"
+dest_files=["res://.godot/imported/wei_xiahouyuan.png-1fef2aa087783c88845a6146825d48c4.ctex"]
 
 [params]
 

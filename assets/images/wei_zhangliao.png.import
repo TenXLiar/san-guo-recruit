@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bm5qdcuhaa1kf"
-valid=false
+uid="uid://busm67wtkefoc"
+path="res://.godot/imported/wei_zhangliao.png-eccb561e0fdec24475eec87e3984347f.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wei_zhangliao.png"
+dest_files=["res://.godot/imported/wei_zhangliao.png-eccb561e0fdec24475eec87e3984347f.ctex"]
 
 [params]
 

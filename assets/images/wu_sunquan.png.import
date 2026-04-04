@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bbjxdujnx5vyt"
-valid=false
+uid="uid://cio4wob6n3nht"
+path="res://.godot/imported/wu_sunquan.png-86c71bab680a486c34a71a99d26b1f1b.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wu_sunquan.png"
+dest_files=["res://.godot/imported/wu_sunquan.png-86c71bab680a486c34a71a99d26b1f1b.ctex"]
 
 [params]
 

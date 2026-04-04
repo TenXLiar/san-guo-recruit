@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b2fgg8f37n3st"
-valid=false
+uid="uid://bp2qeu2ii3vyn"
+path="res://.godot/imported/shu_zhaoyun.png-43ddff5c5151010e10a9b8acb3c0ba76.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/shu_zhaoyun.png"
+dest_files=["res://.godot/imported/shu_zhaoyun.png-43ddff5c5151010e10a9b8acb3c0ba76.ctex"]
 
 [params]
 

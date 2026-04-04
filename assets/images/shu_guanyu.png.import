@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cbjcxnm0xkbgt"
-valid=false
+uid="uid://bgo6u77tadphr"
+path="res://.godot/imported/shu_guanyu.png-775c21c54d55bf5b1aa2cda4c0217e03.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/shu_guanyu.png"
+dest_files=["res://.godot/imported/shu_guanyu.png-775c21c54d55bf5b1aa2cda4c0217e03.ctex"]
 
 [params]
 

@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bo7l56vrk0hlh"
-valid=false
+uid="uid://0od3iq3c0v3u"
+path="res://.godot/imported/qun_zhangjiao.png-811d5df6d6788d46168afd471e8c44ad.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/qun_zhangjiao.png"
+dest_files=["res://.godot/imported/qun_zhangjiao.png-811d5df6d6788d46168afd471e8c44ad.ctex"]
 
 [params]
 

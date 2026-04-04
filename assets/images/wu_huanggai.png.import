@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxiyammqapmvr"
-valid=false
+uid="uid://itm7o0kirjrk"
+path="res://.godot/imported/wu_huanggai.png-de3c7dfa9e6b8a37f1ee13ad53a9215e.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/wu_huanggai.png"
+dest_files=["res://.godot/imported/wu_huanggai.png-de3c7dfa9e6b8a37f1ee13ad53a9215e.ctex"]
 
 [params]
 

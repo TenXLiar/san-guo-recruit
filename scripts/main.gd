@@ -12,6 +12,7 @@ class_name MainUI
 @onready var gm_add_gdp: Button = $TopBar/GMAddGDP
 @onready var content_area: Control = $ContentArea
 @onready var nav_buttons: HBoxContainer = $BottomNav
+@onready var background_tex: TextureRect = $Background
 
 # 区域详情弹窗
 var region_detail_dialog: AcceptDialog = null
@@ -134,10 +135,33 @@ func _ready():
 		last_online_time = Time.get_unix_time_from_system()
 		print("[MainUI] 无存档，使用初始数据")
 	
+	# 动态加载背景纹理（安全加载，避免资源缺失报错）
+	if background_tex:
+		var tex = load("res://assets/images/main_background.png")
+		if tex:
+			background_tex.texture = tex
+		else:
+			print("[MainUI] 背景图片未找到: res://assets/images/main_background.png")
+	
+	# 动态加载按钮背景纹理（安全加载）
+	var button_bg = load("res://assets/images/button_bg.png")
+	if button_bg:
+		var home_btn = get_node("BottomNav/HomeButton")
+		var recruit_btn = get_node("BottomNav/RecruitButton")
+		var lineup_btn = get_node("BottomNav/LineupButton")
+		var battle_btn = get_node("BottomNav/BattleButton")
+		var strategy_btn = get_node("BottomNav/StrategyButton")
+		
+		if home_btn and home_btn is Button: home_btn.icon = button_bg
+		if recruit_btn and recruit_btn is Button: recruit_btn.icon = button_bg
+		if lineup_btn and lineup_btn is Button: lineup_btn.icon = button_bg
+		if battle_btn and battle_btn is Button: battle_btn.icon = button_bg
+		if strategy_btn and strategy_btn is Button: strategy_btn.icon = button_bg
+	else:
+		print("[MainUI] 按钮背景图片未找到: res://assets/images/button_bg.png")
+	
 	# 让Background忽略鼠标事件，避免挡住点击
-	var bg = get_node_or_null("Background")
-	if bg:
-		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	background_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	# 让ContentArea接收鼠标事件
 	content_area.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -147,10 +171,10 @@ func _ready():
 	
 	update_resource_display()
 	
-	# 连接导航按钮
+	# 连接导航按钮（Godot 4 风格）
 	for button in nav_buttons.get_children():
 		if button is Button:
-			button.connect("pressed", Callable(self, "_on_nav_button_pressed").bind(button.name))
+			button.pressed.connect(_on_nav_button_pressed.bind(button.name))
 	
 	_on_nav_button_pressed("HomeButton")
 	
@@ -158,27 +182,27 @@ func _ready():
 	
 	# 连接GM按钮
 	if gm_add_gdp:
-		gm_add_gdp.connect("pressed", Callable(self, "_gm_add_1000_gdp"))
+		gm_add_gdp.pressed.connect(_gm_add_1000_gdp)
 		gm_add_gdp.visible = true  # GM功能默认显示，开发阶段方便测试
 	
 	# 连接区域按钮点击
 	if region_name_btn:
-		region_name_btn.connect("pressed", Callable(self, "_show_region_detail"))
+		region_name_btn.pressed.connect(_show_region_detail)
 	
 	# 创建区域详情弹窗
 	region_detail_dialog = AcceptDialog.new()
 	region_detail_dialog.title = "区域详情"
-	region_detail_dialog.set_min_size(Vector2(400, 300))
+	region_detail_dialog.min_size = Vector2(400, 300)
 	add_child(region_detail_dialog)
 	
 	# 创建策略对话框
 	strategy_dialog = AcceptDialog.new()
 	strategy_dialog.title = "📋 策略使用"
-	strategy_dialog.set_min_size(Vector2(450, 400))
+	strategy_dialog.min_size = Vector2(450, 400)
 	strategy_vbox = VBoxContainer.new()
 	strategy_vbox.custom_minimum_size = Vector2(0, 300)
 	strategy_dialog.add_child(strategy_vbox)
-	strategy_dialog.connect("confirmed", Callable(self, "_on_strategy_confirmed"))
+	strategy_dialog.confirmed.connect(_on_strategy_confirmed)
 	add_child(strategy_dialog)
 	
 	# 创建每个策略按钮
@@ -186,19 +210,24 @@ func _ready():
 		var btn = Button.new()
 		btn.text = "%s\n%s" % [s.name, s.description]
 		btn.custom_minimum_size = Vector2(0, 80)
-		btn.connect("pressed", Callable(self, "_select_strategy").bind(s))
+		btn.pressed.connect(_select_strategy.bind(s))
 		strategy_vbox.add_child(btn)
 	
 	# 监听进度更新，刷新UI
-	ProgressManager.progress_updated.connect(_on_progress_updated)
+	if ProgressManager.has_signal("progress_updated"):
+		ProgressManager.progress_updated.connect(_on_progress_updated)
 	
 	# 连接策略按钮
 	var strategy_btn = get_node_or_null("BottomNav/StrategyButton")
 	if strategy_btn:
-		strategy_btn.connect("pressed", Callable(self, "_show_strategy_dialog"))
+		strategy_btn.pressed.connect(_show_strategy_dialog)
+	
+	# 监听资源更新信号，实时刷新顶部栏显示
+	if IdleManager and IdleManager.has_signal("resources_updated"):
+		IdleManager.resources_updated.connect(update_resource_display)
 	
 	# 自动保存 when closing
-	connect("tree_exiting", Callable(self, "_auto_save"))
+	tree_exiting.connect(_auto_save)
 
 # 🕒 每帧更新挂机收益
 var _accum: float = 0
@@ -213,10 +242,12 @@ func _process(delta: float):
 
 # 监听键盘事件
 func _input(event: InputEvent) -> void:
-	# 按F快速抽卡（只在招募页面生效
+	# 按F快速抽卡（只在招募页面生效）
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_F and current_page == "RecruitButton":
 			_do_recruit()
+		elif event.keycode == KEY_R and current_page == "RecruitButton":
+			_do_recruit_ten()
 
 # 🏆 显示离线收益
 func show_offline_rewards():
@@ -235,14 +266,14 @@ func show_offline_rewards():
 			popup.text = "🎉 离线收益：%d 国运点\n⏰ 离线了%d分钟" % [int(offline_earned), int(offline_time / 60)]
 			popup.add_theme_font_size_override("font_size", 20)
 			popup.modulate = Color(1, 0.84, 0)
-			popup.anchors_preset = 8
+			popup.anchors_preset = Control.PRESET_CENTER
 			popup.anchor_top = 0.3
 			content_area.add_child(popup)
 			
 			# 3秒后自动消失
 			var timer = Timer.new()
 			timer.wait_time = 3.0
-			timer.connect("timeout", Callable(popup, "queue_free"))
+			timer.timeout.connect(popup.queue_free)
 			add_child(timer)
 			timer.start()
 	
@@ -270,8 +301,9 @@ func update_resource_display():
 func _on_nav_button_pressed(button_name: String):
 	current_page = button_name
 	
-	# 卸载当前UI
+	# 卸载当前UI（必须先移除再删除，避免「已经有父节点」错误）
 	if current_ui != null:
+		content_area.remove_child(current_ui)
 		current_ui.queue_free()
 	
 	# 进入子界面时隐藏底部导航
@@ -282,7 +314,7 @@ func _on_nav_button_pressed(button_name: String):
 		"HomeButton":
 			current_ui = home_scene.instantiate()
 			# 连接点击加速信号
-			current_ui.connect("clicked_gdp", Callable(self, "_on_click_gdp"))
+			current_ui.clicked_gdp.connect(_on_click_gdp)
 			# 回到主页显示底部导航
 			nav_buttons.visible = true
 			# 更新武将数量
@@ -291,20 +323,23 @@ func _on_nav_button_pressed(button_name: String):
 		"RecruitButton":
 			current_ui = recruit_scene.instantiate()
 			# 连接抽卡信号
-			current_ui.connect("recruit_requested", Callable(self, "_do_recruit"))
+			current_ui.recruit_requested.connect(_do_recruit)
+			current_ui.recruit_ten_requested.connect(_do_recruit_ten)
 			# 连接返回信号
-			current_ui.connect("back_requested", Callable(self, "_on_back_to_home"))
-			print("MainUI: 已连接招募信号")
+			current_ui.back_requested.connect(_on_back_to_home)
+			print("MainUI: 已连接招募信号（单抽+十连）")
 		"LineupButton":
 			current_ui = lineup_scene.instantiate()
+			# 设置已拥有武将列表
+			current_ui.set_owned_heroes(owned_heroes)
 			# 连接返回信号
-			current_ui.connect("back_requested", Callable(self, "_on_back_to_home"))
+			current_ui.back_requested.connect(_on_back_to_home)
 			print("MainUI: 已加载阵容编辑界面")
 		"BattleButton":
 			current_ui = battle_scene.instantiate()
 			# 连接返回信号（如果需要）
-			if current_ui.has_method("back_requested"):
-				current_ui.connect("back_requested", Callable(self, "_on_back_to_home"))
+			if current_ui.has_signal("back_requested"):
+				current_ui.back_requested.connect(_on_back_to_home)
 	
 	# 添加到内容区
 	if current_ui != null:
@@ -362,15 +397,15 @@ func _do_recruit():
 	
 	if not owned_heroes.has(hero_id):
 		owned_heroes[hero_id] = hero_data
-		# 同步添加到HeroLibrary单例
-		HeroLibrary.instance.add_hero(hero_id)
+		# 同步添加到HeroLibrary（假设HeroLibrary是autoload）
+		HeroLibrary.add_hero(hero_id)
 		is_new = true
 	else:
 		if not hero_fragments.has(hero_id):
 			hero_fragments[hero_id] = 0
 		hero_fragments[hero_id] += 1
 		# 同步添加碎片到HeroLibrary
-		HeroLibrary.instance.add_fragments(hero_id, 1)
+		HeroLibrary.add_fragments(hero_id, 1)
 	
 	# 显示结果
 	if current_ui != null and current_page == "RecruitButton":
@@ -380,6 +415,86 @@ func _do_recruit():
 		current_ui.show_result(hero_data, is_new, RARITY_NAMES[rarity-1], RARITY_COLORS[rarity-1], fragments)
 	
 	print("抽卡结果：%s (%s)，新武将：%s" % [hero_data.name, RARITY_NAMES[rarity-1], str(is_new)])
+
+# 十连抽逻辑
+func _do_recruit_ten():
+	print("十连抽触发！")
+	
+	if current_gdp < 900:
+		if current_ui != null and current_page == "RecruitButton":
+			current_ui.show_gdp_not_enough(900)
+		return
+	
+	# 扣除国运点（十连九折优惠）
+	current_gdp -= 900
+	update_resource_display()
+	
+	# 抽取9个武将，填满九宫格
+	var results: Array[Dictionary] = []
+	
+	for i in range(9):
+		# 随机稀有度
+		var roll = randi() % 100
+		var hero_list = []
+		var rarity = 1
+		
+		if roll < 1:
+			hero_list = ORANGE_HEROES
+			rarity = 5
+			print("抽到橙将！")
+		elif roll < 3:
+			hero_list = PURPLE_HEROES
+			rarity = 4
+			print("抽到紫将！")
+		elif roll < 10:
+			hero_list = BLUE_HEROES
+			rarity = 3
+			print("抽到蓝将！")
+		elif roll < 30:
+			hero_list = GREEN_HEROES
+			rarity = 2
+			print("抽到绿将！")
+		else:
+			hero_list = WHITE_HEROES
+			rarity = 1
+			print("抽到白将！")
+		
+		# 从对应稀有度里随机一个武将
+		var hero_data = hero_list[randi() % hero_list.size()]
+		
+		# 处理结果
+		var hero_id = hero_data.id
+		var is_new = false
+		
+		if not owned_heroes.has(hero_id):
+			owned_heroes[hero_id] = hero_data
+			# 同步添加到HeroLibrary（假设HeroLibrary是autoload）
+			HeroLibrary.add_hero(hero_id)
+			is_new = true
+		else:
+			if not hero_fragments.has(hero_id):
+				hero_fragments[hero_id] = 0
+			hero_fragments[hero_id] += 1
+			# 同步添加碎片到HeroLibrary
+			HeroLibrary.add_fragments(hero_id, 1)
+		
+		# 添加到结果列表
+		results.append({
+			"hero_data": hero_data,
+			"is_new": is_new,
+			"rarity": rarity,
+			"rarity_color": RARITY_COLORS[rarity-1]
+		})
+	
+	# 显示结果在九宫格
+	if current_ui != null and current_page == "RecruitButton":
+		current_ui.show_ten_results(results)
+	
+	var new_count: int = 0
+	for r in results:
+		if r.is_new:
+			new_count += 1
+	print("十连抽完成，共 %d 个新武将" % [new_count])
 
 # GM功能：增加1000国运点
 func _gm_add_1000_gdp():
@@ -392,13 +507,13 @@ func _gm_add_1000_gdp():
 	popup.text = "🎉 [GM] +1000 国运点"
 	popup.add_theme_font_size_override("font_size", 20)
 	popup.modulate = Color(1, 0.2, 0.2)
-	popup.anchors_preset = 8
+	popup.anchors_preset = Control.PRESET_CENTER
 	popup.anchor_top = 0.4
 	content_area.add_child(popup)
 	
 	var timer = Timer.new()
 	timer.wait_time = 2.0
-	timer.connect("timeout", Callable(popup, "queue_free"))
+	timer.timeout.connect(popup.queue_free)
 	add_child(timer)
 	timer.start()
 
@@ -417,14 +532,14 @@ func _show_toast(text: String):
 		popup.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 	else:
 		popup.add_theme_color_override("font_color", Color(0.2, 1, 0.2))
-	popup.anchors_preset = 8
+	popup.anchors_preset = Control.PRESET_CENTER
 	popup.anchor_top = 0.2
 	content_area.add_child(popup)
 	
 	# 3秒后消失
 	var timer = Timer.new()
 	timer.wait_time = 3.0
-	timer.connect("timeout", Callable(popup, "queue_free"))
+	timer.timeout.connect(popup.queue_free)
 	add_child(timer)
 	timer.start()
 
@@ -458,7 +573,6 @@ func _show_strategy_dialog():
 func _select_strategy(strategy: Dictionary):
 	# 检查资源是否足够
 	if IdleManager.get_current_money() < strategy.get("cost_money", 0):
-		# 弹出提示钱不够
 		_show_toast("❌ 钱不足，无法使用此策略")
 		return
 	if IdleManager.get_current_food() < strategy.get("cost_food", 0):
@@ -477,11 +591,10 @@ func _select_strategy(strategy: Dictionary):
 	match strategy.id:
 		"speed_boost":
 			# 犒赏三军：攻城速度+50% 持续30秒
-			IdleManager.instance.set_temp_speed_bonus(strategy.speed_bonus, strategy.duration)
+			IdleManager.set_temp_speed_bonus(strategy.speed_bonus, strategy.duration)
 			_show_toast("✅ 犒赏三军生效！速度+50%%，持续30秒")
 		"spying":
 			# 间谍活动：下一次事件成功率+20% （后续事件系统实现，现在只消耗给钱记录）
-			# TODO: 事件系统读取这个加成
 			_show_toast("✅ 间谍活动生效！下一事件成功率+20%%")
 		"recruit_soldier":
 			# 紧急征兵：获得(钱+粮) * 系数
@@ -496,6 +609,16 @@ func _select_strategy(strategy: Dictionary):
 # 确认按钮不用了，我们直接点击按钮执行
 func _on_strategy_confirmed():
 	strategy_dialog.hide()
+
+# 获取已拥有武将字典（供阵容界面读取）
+func get_owned_heroes() -> Dictionary:
+	return owned_heroes
+
+# 根据ID获取武将数据（供阵容界面读取）
+func get_owned_hero_data(hero_id: String) -> Dictionary:
+	if owned_heroes.has(hero_id):
+		return owned_heroes[hero_id]
+	return {}
 
 # 自动保存
 func _auto_save():
@@ -521,12 +644,12 @@ func _manual_save():
 	popup.text = "💾 存档成功！"
 	popup.add_theme_font_size_override("font_size", 20)
 	popup.modulate = Color(0, 1, 0)
-	popup.anchors_preset = 8
+	popup.anchors_preset = Control.PRESET_CENTER
 	popup.anchor_top = 0.5
 	content_area.add_child(popup)
 	
 	var timer = Timer.new()
 	timer.wait_time = 2.0
-	timer.connect("timeout", Callable(popup, "queue_free"))
+	timer.timeout.connect(popup.queue_free)
 	add_child(timer)
 	timer.start()

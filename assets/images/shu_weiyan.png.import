@@ -2,12 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c6lieqxnerqao"
-valid=false
+uid="uid://c1nusvqvf0ly0"
+path="res://.godot/imported/shu_weiyan.png-9e1550708f3cae05d08ac28a937062e3.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://assets/images/shu_weiyan.png"
+dest_files=["res://.godot/imported/shu_weiyan.png-9e1550708f3cae05d08ac28a937062e3.ctex"]
 
 [params]
 
