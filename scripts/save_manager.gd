@@ -203,3 +203,37 @@ func delete_save() -> bool:
 # 检查是否有存档
 func has_save() -> bool:
 	return FileAccess.file_exists(save_path)
+
+# 开始新游戏 - 重置为初始数据
+func new_game() -> Dictionary:
+	# 重置save_data为默认初始值
+	save_data = {
+		"version": 2,
+		"current_gdp": 1000.0,
+		"current_prestige": 0,
+		"current_rank": 1000,
+		"owned_heroes": {},
+		"hero_fragments": {},
+		"last_online_time": 0,
+		"region_unlocked_regions": [],
+		"region_progress": {},
+		"region_current_id": "",
+		"region_permanent_bonuses": {},
+		"current_money": 0.0,
+		"current_food": 0.0,
+		"current_soldier": 0.0,
+		"permanent_money_bonus": 1.0,
+		"permanent_food_bonus": 1.0,
+		"permanent_soldier_bonus": 1.0,
+		"total_guard_bravery": 0.0,
+		"total_guard_wisdom": 0.0,
+		"bongo_level": 1,
+		"bongo_exp": 0,
+		"temp_speed_bonus": 1.0,
+		"temp_speed_bonus_end": 0.0,
+		"current_ng_plus": 1,
+		"difficulty_multiplier": 1.0
+	}
+	print("[SaveManager] 新游戏初始化完成")
+	save_loaded.emit()
+	return save_data.duplicate()

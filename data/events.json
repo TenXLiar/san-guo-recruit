@@ -515,4 +515,18 @@
       "description": "发现大型铁矿，如何发展：",
       "options": [
         {
-          "text":
+          "text": "官营采矿",
+          "cost_money": 50,
+          "permanent_money_bonus": 0.1,
+          "description": "官方开采永久增加金钱产出"
+        },
+        {
+          "text": "民间开采",
+          "reward_money": 30,
+          "description": "一次性获得税收"
+        }
+      ]
+    }
+  ],
+  "event_chains": []
+}
