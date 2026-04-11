@@ -136,25 +136,37 @@ san-guo-recruit/
 │   ├── region_manager.gd
 │   ├── progress_manager.gd
 │   └── event_manager.gd
-├── scenes/                    # 场景
-│   ├── main.tscn              # 主菜单
-│   ├── recruit.tscn          # 抽卡界面
-│   ├── lineup.tscn           # 阵容编辑
-│   ├── battle.tscn           # 战斗界面
-│   ├── settings.tscn         # 设置
-│   └── hero_dictionary.tscn # 武将图鉴
-├── scripts/                   # 脚本
+├── scripts/
+│   ├── autoload/
+│   │   └── ConfigLoader.gd   # 👈 配置加载器（从CSV读取配置）
 │   ├── main.gd               # 主菜单逻辑
 │   ├── recruit_ui.gd         # 抽卡界面逻辑
 │   ├── lineup.gd             # 阵容编辑逻辑
 │   ├── battle_ui.gd          # 战斗界面逻辑
-│   ├── HeroData.gd           # 武将数据定义
-│   ├── HeroDatabase.gd       # 武将数据库
-│   ├── Skill.gd              # 技能基类
-│   └── Skill_*.gd            # 具体技能实现
-├── data/                      # 静态数据
+│   └── ui/
+│       └── *.gd              # 各界面UI逻辑
+├── scenes/                    # 场景
+│   ├── main.tscn              # 主菜单（已修复语法错误）
+│   ├── recruit.tscn          # 抽卡界面
+│   ├── lineup.tscn           # 阵容编辑
+│   ├── battle.tscn           # 战斗界面
+│   ├── start_screen.tscn     # 启动屏幕
+│   └── library.tscn          # 武将图鉴
+├── xlsx/                      # 👈 数据源：用Excel直接编辑
+│   ├── heroes.xlsx            # 所有武将配置
+│   ├── skills.xlsx           # 所有技能配置
+│   ├── regions.xlsx          # 所有区域配置
+│   └── game_config.xlsx      # 全局游戏配置（抽卡概率、初始值）
+├── data/                      # 👈 导出结果：游戏运行读这里
+│   ├── README.md
 │   ├── heroes.csv             # 武将数据
-│   └── events.json            # 随机事件数据
+│   ├── skills.csv            # 技能数据
+│   ├── regions.csv            # 区域数据
+│   └── game_config.csv       # 全局游戏配置
+├── tools/                     # 工具脚本
+│   ├── xlsx_to_csv.py        # Excel → CSV/JSON 转换
+│   ├── csv_to_xlsx.py        # CSV模板 → Excel转换
+│   └── requirements.txt      # Python依赖
 ├── screenshots/               # 视觉QA截图
 ├── PLAN.md                    # 开发计划
 ├── STRUCTURE.md               # 架构文档
@@ -162,7 +174,65 @@ san-guo-recruit/
 └── README.md                 # 本文件
 ```
 
-## 🎉 最终状态
+## 📊 数据驱动架构（2026-04-11 更新）
+
+为了更好的可维护性和可拓展性，**所有游戏配置已迁移到 Excel 表格管理**：
+
+### 架构优势
+
+- ✅ **数据代码分离**：策划/调整数值不用改代码，直接编辑 Excel
+- ✅ **版本可控**：Excel 源文件也纳入 Git 版本管理
+- ✅ **一键导出**：改完 Excel 运行 `python tools/xlsx_to_csv.py` 自动更新
+- ✅ **易于拓展**：新增武将/技能/区域只要加一行，不用动代码
+
+### 已配置数据表
+
+| 表名 | 用途 |
+|------|------|
+| `heroes.xlsx` | 所有武将：ID、名称、稀有度、阵营、攻击、防御、技能ID |
+| `skills.xlsx` | 所有技能：ID、名称、描述、效果类型、效果数值 |
+| `regions.xlsx` | 所有攻城区域：名称、描述、各种消耗倍率、通关奖励 |
+| `game_config.xlsx` | 全局配置：抽卡价格、各稀有度概率、初始国运、挂机产出 |
+
+### 使用方法
+
+```bash
+# 1. 在 xlsx/ 编辑你的 Excel
+# 2. 安装依赖
+cd tools
+pip install -r requirements.txt
+# 3. 一键导出到 data/
+python xlsx_to_csv.py
+# 4. Godot 启动自动加载，游戏直接用新配置
+```
+
+### Godot 中读取示例
+
+```gdscript
+# 获取抽卡价格（带默认值）
+var cost_single = ConfigLoader.get_recruit_config("cost_single", 100)
+
+# 获取所有橙将
+var orange_heroes = ConfigLoader.get_heroes_by_rarity(5)
+
+# 根据ID获取单个武将
+var guanyu = ConfigLoader.get_hero_by_id("shu_guanyu")
+print(guanyu.name, guanyu.attack)  # 关羽 98
+```
+
+## 📅 更新日志
+
+### 2026-04-11 - 数据驱动架构改造
+
+- ✅ **完成配置数据分离**：所有武将/技能/区域/游戏配置迁移到 Excel 表格
+- ✅ 新增 `ConfigLoader.gd` 自动加载 CSV 配置，代码中直接取用
+- ✅ 新增 Python 转换工具，Excel 一键导出 CSV
+- ✅ 清理了项目目录，删除所有无用临时文件，结构清晰
+- ✅ 修复了 `main.tscn` 语法错误（缺失引号导致无法加载）
+- ✅ 修复了 `progress_manager.gd` 列名不匹配导致字典访问错误
+- ✅ 所有修改已推送到 GitHub
+
+### 之前完成
 
 **所有核心功能完整可用**，整个游戏流程已经打通：
 
