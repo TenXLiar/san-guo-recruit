@@ -122,12 +122,12 @@ custom_minimum_size = Vector2(140, 70)
 layout_mode = 2
 text = "⚔️ 阵容"
 
-[node name="BattleButton" type="Button" parent="BottomNav" unique_id="1243035985]
+[node name="BattleButton" type="Button" parent="BottomNav" unique_id="1243035985"]
 custom_minimum_size = Vector2(140, 70)
 layout_mode = 2
 text = "🏆 挑战"
 
-[node name="StrategyButton" type="Button" parent="BottomNav" unique_id="1275202903]
+[node name="StrategyButton" type="Button" parent="BottomNav" unique_id="1275202903"]
 custom_minimum_size = Vector2(140, 70)
 layout_mode = 2
 text = "📋 策略"
