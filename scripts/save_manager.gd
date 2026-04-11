@@ -35,7 +35,10 @@ var save_data: Dictionary = {
 	"bongo_exp": 0,
 	# 新增 - 临时速度增益
 	"temp_speed_bonus": 1.0,
-	"temp_speed_bonus_end": 0.0
+	"temp_speed_bonus_end": 0.0,
+	# 新增 - 多周目系统
+	"current_ng_plus": 1,
+	"difficulty_multiplier": 1.0
 }
 
 func _ready():
@@ -115,6 +118,8 @@ func load_game() -> Dictionary:
 			"current_region_id": save_data.region_current_id,
 			"permanent_bonuses": save_data.region_permanent_bonuses
 		})
+		if save_data.has("current_ng_plus"):
+			region_manager.set_current_ng_plus(save_data.get("current_ng_plus", 1))
 	var idle_manager = get_node_or_null("/root/IdleManager")
 	if idle_manager and save_data.has("current_money"):
 		idle_manager.current_money = save_data.get("current_money", 0.0)
@@ -132,6 +137,22 @@ func load_game() -> Dictionary:
 		bongo_cat.current_level = save_data.get("bongo_level", 1)
 		bongo_cat.current_exp = save_data.get("bongo_exp", 0)
 		bongo_cat.update_level_display()
+	# 加载无尽挑战和每日试炼
+	var challenge_manager = get_node_or_null("/root/ChallengeManager")
+	if challenge_manager and save_data.has("endless_current_wave"):
+		challenge_manager.load_from_save(save_data)
+	# 加载图鉴
+	var gallery_manager = get_node_or_null("/root/GalleryManager")
+	if gallery_manager and save_data.has("collected_heroes"):
+		gallery_manager.load_from_save(save_data)
+	# 加载成就
+	var achievement_manager = get_node_or_null("/root/AchievementManager")
+	if achievement_manager and save_data.has("achievements"):
+		achievement_manager.load_from_save(save_data)
+	# 加载皮肤和主题
+	var skin_manager = get_node_or_null("/root/SkinManager")
+	if skin_manager and save_data.has("bongo_skins"):
+		skin_manager.load_from_save(save_data)
 	
 	save_loaded.emit()
 	return save_data

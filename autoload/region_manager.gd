@@ -8,10 +8,15 @@ var region_progress: Dictionary = {}  # 每个区域的进度 [0.0 - 100.0]
 var current_region_id: String = ""  # 当前攻略区域
 var permanent_bonuses: Dictionary = {}  # 永久增益 {"food_bonus": 0.05, ...}
 
+# 多周目难度倍率，每增加一周目难度提升10%消耗
+var current_ng_plus: int = 1
+var difficulty_multiplier: float = 1.0
+
 # 信号
 signal region_unlocked(region_id: String)
 signal region_completed(region_id: String)
 signal progress_updated(region_id: String, progress: float)
+signal ng_plus_changed(new_ng: int)
 
 func _ready():
 	# 从JSON加载区域数据
@@ -88,6 +93,7 @@ func _handle_current_region_completed() -> bool:
 	region_completed.emit(current_region_id)
 	# 查找下一个区域
 	var next_region = get_next_unlocked_region()
+	print(next_region)
 	if next_region != null:
 		unlock_next_region(next_region.id)
 		print("[RegionManager] 区域 %s 已完成，自动解锁下一个: %s" % [current_region_id, next_region.id])
@@ -152,4 +158,40 @@ func load_from_save(save_data: Dictionary):
 		current_region_id = save_data.current_region_id
 	if save_data.has("permanent_bonuses"):
 		permanent_bonuses = save_data.permanent_bonuses
-	print("[RegionManager] 存档恢复完成: %d 个已解锁区域" % unlocked_regions.size())
+	if save_data.has("current_ng_plus"):
+		current_ng_plus = save_data.get("current_ng_plus", 1)
+		update_difficulty_multiplier()
+	print("[RegionManager] 存档恢复完成: %d 个已解锁区域，NG+ %d" % [unlocked_regions.size(), current_ng_plus])
+
+# 获取当前难度倍率（基础倍率 × NG+倍率）
+func get_current_difficulty_multiplier() -> float:
+	return difficulty_multiplier
+
+# 更新难度倍率
+func update_difficulty_multiplier():
+	# 每增加一周目，难度提升10%（消耗增加10%，进度速度降低10%）
+	difficulty_multiplier = 1.0 + (current_ng_plus - 1) * 0.1
+	print("[RegionManager] NG+ %d, 难度倍率: %.2f" % [current_ng_plus, difficulty_multiplier])
+
+# 开始新周目，保留已拥有武将和部分资源，重置区域进度
+func start_new_ng_plus(keep_heroes: bool = true, keep_resources: bool = true):
+	current_ng_plus += 1
+	update_difficulty_multiplier()
+	# 重置所有区域进度，只解锁第一个区域
+	var first_region = regions[0]
+	unlocked_regions = [first_region.id]
+	region_progress.clear()
+	region_progress[first_region.id] = 0.0
+	current_region_id = first_region.id
+	print("[RegionManager] 开始新周目 NG+ %d" % current_ng_plus)
+	ng_plus_changed.emit(current_ng_plus)
+	return current_ng_plus
+
+# 获取当前NG+周目数
+func get_current_ng_plus() -> int:
+	return current_ng_plus
+
+# 设置NG+周目数（加载存档时用）
+func set_current_ng_plus(ng: int):
+	current_ng_plus = ng
+	update_difficulty_multiplier()

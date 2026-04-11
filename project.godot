@@ -14,7 +14,7 @@ config/name="国运：三国招贤阁"
 config/description="一款三国背景的模拟经营+卡牌战斗游戏"
 config/version="1.0.0"
 config/tags=[]
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/start_screen.tscn"
 config/features=PackedStringArray("4.6")
 config/disable_stdout=false
 config/disable_stderr=false
@@ -62,6 +62,10 @@ SaveManager="*res://scripts/save_manager.gd"
 RegionManager="*res://autoload/region_manager.gd"
 ProgressManager="*res://autoload/progress_manager.gd"
 EventManager="*res://autoload/event_manager.gd"
+ChallengeManager="*res://autoload/challenge_manager.gd"
+GalleryManager="*res://autoload/gallery_manager.gd"
+AchievementManager="*res://autoload/achievement_manager.gd"
+SkinManager="*res://autoload/skin_manager.gd"
 
 [display]
 

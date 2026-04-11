@@ -27,11 +27,14 @@ var current_exp: int = 0
 var tap_count_this_second: int = 0
 var fever_end_time: float = 0.0
 var fever_cooldown_end: float = 0.0
+var total_taps: int = 0  # 累计敲击总数（成就）
+var total_crazy: int = 0  # 累计暴走次数（成就）
 
 # 节点引用
 @onready var animation_player: AnimationPlayer = $AnimationPlayer
 @onready var level_label: Label = $LevelLabel
 @onready var gdp_label: Label = $GdpLabel
+@onready var cat_texture: TextureRect = $CatTexture
 
 # 信号
 signal level_up(new_level: int)  # 升级时触发
@@ -39,6 +42,11 @@ signal fever_started()  # 暴走开始时触发
 signal fever_ended()  # 暴走结束时触发
 
 func _ready():
+	# 监听皮肤变化
+	if SkinManager:
+		SkinManager.connect("bongo_skin_changed", Callable(self, "_on_skin_changed"))
+		# 更新初始皮肤
+		_on_skin_changed(SkinManager.current_bongo_skin_id)
 	# 启动每秒计数器
 	var timer = Timer.new()
 	timer.wait_time = 1.0
@@ -52,6 +60,23 @@ func _ready():
 	# 初始状态为idle
 	play_animation("idle")
 
+# 皮肤改变回调
+func _on_skin_changed(skin_id: String):
+	var skin = SkinManager.get_current_bongo_skin()
+	# 如果有自定义纹理，加载它
+	if skin != null and skin.has("texture_path"):
+		var texture = load(skin.texture_path)
+		if texture:
+			cat_texture.texture = texture
+
+# 获取累计敲击总数
+func get_total_taps() -> int:
+	return total_taps
+
+# 获取累计暴走总数
+func get_total_crazy() -> int:
+	return total_crazy
+
 # 监听输入事件
 func _input(event: InputEvent):
 	# 只处理按下事件
@@ -63,6 +88,11 @@ func _input(event: InputEvent):
 # 按键/鼠标按下处理
 func _on_key_pressed():
 	tap_count_this_second += 1
+	total_taps += 1  # 累计敲击
+	
+	# 更新成就进度
+	AchievementManager.update_progress("bongo_tap_1000", total_taps)
+	AchievementManager.update_progress("bongo_tap_10000", total_taps)
 	
 	# 增加经验
 	add_exp(EXP_PER_TAP)
@@ -88,7 +118,9 @@ func _on_key_pressed():
 		main.add_gdp(gdp_amount)
 	
 	# 检查寻宝
-	if randf() < TREASURE_PROBABILITY:
+	if randf() < (TREASURE_PROBABILITY + SkinManager.get_current_bongo_effects().get("crazy_chance_bonus", 0.0)):
+		total_crazy += 1
+		AchievementManager.update_progress("bongo_crazy_100", total_crazy)
 		# 触发寻宝，给少量钱粮兵
 		var treasure_min = 5
 		var treasure_max = 10
@@ -98,10 +130,10 @@ func _on_key_pressed():
 		var money = randi_range(treasure_min, treasure_max)
 		var food = randi_range(treasure_min, treasure_max)
 		var soldier = randi_range(treasure_min, treasure_max)
-		IdleManager.instance.add_money(money)
-		IdleManager.instance.add_food(food)
-		IdleManager.instance.add_soldier(soldier)
-		print("[Bongo Cat] 寻宝! +%d 钱 +%d 粮 +%d 兵" % [money, food, soldier])
+		IdleManager.add_money(money)
+		IdleManager.add_food(food)
+		IdleManager.add_soldier(soldier)
+		print("[Bongo Cat] 暴走寻宝! +%d 钱 +%d 粮 +%d 兵" % [money, food, soldier])
 	
 	# 更新显示
 	update_gdp_display()
@@ -127,6 +159,8 @@ func start_fever():
 	play_animation("fever")
 	fever_end_time = Time.get_unix_time_from_system() + FEVER_DURATION
 	fever_cooldown_end = fever_end_time + FEVER_COOLDOWN
+	total_crazy += 1
+	AchievementManager.update_progress("bongo_crazy_100", total_crazy)
 	fever_started.emit()
 	print("Bongo Cat进入暴走状态！")
 
@@ -170,12 +204,20 @@ func update_level_display():
 
 # 更新国运显示
 func update_gdp_display():
+	var effects = SkinManager.get_current_bongo_effects()
+	var extra_gdp_min = TAP_GDP_MIN
+	var extra_gdp_max = TAP_GDP_MAX
+	var gdp_bonus = effects.get("gdp_bonus", 0.0)
+	if gdp_bonus > 0:
+		extra_gdp_min += int(ceil(TAP_GDP_MIN * gdp_bonus))
+		extra_gdp_max += int(ceil(TAP_GDP_MAX * gdp_bonus))
+	
 	if current_state == CatState.FEVER:
 		var remaining = fever_end_time - Time.get_unix_time_from_system()
-		gdp_label.text = "暴走! +%d-%d/次\n%.0fs" % [FEVER_GDP_MIN, FEVER_GDP_MAX, remaining]
+		gdp_label.text = "暴走! +%d-%d/次\n%.0fs" % [FEVER_GDP_MIN + int(ceil(FEVER_GDP_MIN * gdp_bonus)), FEVER_GDP_MAX + int(ceil(FEVER_GDP_MAX * gdp_bonus)), remaining]
 		gdp_label.visible = true
 	elif current_state == CatState.TAP:
-		gdp_label.text = "+%d-%d/次" % [TAP_GDP_MIN, TAP_GDP_MAX]
+		gdp_label.text = "+%d-%d/次" % [extra_gdp_min, extra_gdp_max]
 		gdp_label.visible = true
 	else:
 		gdp_label.visible = false
@@ -184,11 +226,15 @@ func update_gdp_display():
 func save_data() -> Dictionary:
 	return {
 		"level": current_level,
-		"exp": current_exp
+		"exp": current_exp,
+		"total_taps": total_taps,
+		"total_crazy": total_crazy
 	}
 
 # 加载数据（供存档系统调用）
 func load_data(data: Dictionary):
 	current_level = data.get("level", 1)
 	current_exp = data.get("exp", 0)
+	total_taps = data.get("total_taps", 0)
+	total_crazy = data.get("total_crazy", 0)
 	update_level_display()

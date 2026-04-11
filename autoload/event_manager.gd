@@ -5,117 +5,127 @@ extends Node
 const BASE_PROBABILITY: float = 0.1  # 基础概率每小时
 const CHECK_INTERVAL: float = 300.0  # 每5分钟检查一次（开发测试方便）
 
-# 基础事件库（策划案预设5个基础事件）
-var BASE_EVENTS = [
-	{
-		"id": "bandit_attack",
-		"title": "山贼来袭",
-		"description": "一群山贼洗劫了粮道，损失了部分粮草。你决定：",
-		"options": [
-			{
-				"text": "迎击山贼",
-				"cost_soldier": 10,
-				"reward_progress": 5,
-				"description": "击退山贼获得进度奖励"
-			},
-			{
-				"text": "放弃绕道",
-				"cost_progress": 3,
-				"description": "损失进度，但不消耗兵力"
-			}
-		]
-	},
-	{
-		"id": "merchant_visit",
-		"title": "商人来访",
-		"description": "行商路过你的领地，想要和你交易：",
-		"options": [
-			{
-				"text": "买粮（20钱 → 30粮）",
-				"cost_money": 20,
-				"reward_food": 30,
-				"description": "用钱买粮"
-			},
-			{
-				"text": "买兵（20粮 → 15兵）",
-				"cost_food": 20,
-				"reward_soldier": 15,
-				"description": "用粮换兵"
-			}
-		]
-	},
-	{
-		"id": "flood_disaster",
-		"title": "洪水灾害",
-		"description": "连日大雨引发洪水，冲毁了部分农田：",
-		"options": [
-			{
-				"text": "开仓赈灾",
-				"cost_food": 20,
-				"reward_event_probability": -0.1,
-				"description": "消耗粮草减少后续事件概率"
-			},
-			{
-				"text": "任由洪水泛滥",
-				"cost_food": 0,
-				"reward_food": -10,
-				"description": "损失部分现有粮草"
-			}
-		]
-	},
-	{
-		"id": "farmer_request",
-		"title": "百姓请命",
-		"description": "当地百姓请求减税，答应可以提高后续产出：",
-		"options": [
-			{
-				"text": "答应请求",
-				"cost_money": 10,
-				"permanent_money_bonus": 0.05,
-				"description": "永久增加钱产出+5%"
-			},
-			{
-				"text": "拒绝请求",
-				"description": "无变化"
-			}
-		]
-	},
-	{
-		"id": "recruit_volunteers",
-		"title": "募兵",
-		"description": "乡里征召志愿兵，你可以：",
-		"options": [
-			{
-				"text": "花钱招募",
-				"cost_money": 25,
-				"reward_soldier": 25,
-				"description": "直接获得25兵力"
-			},
-			{
-				"text": "征粮换兵",
-				"cost_food": 20,
-				"reward_soldier": 20,
-				"description": "消耗粮草获得兵力"
-			}
-		]
-	}
-]
+# 所有事件从外部JSON加载
+var all_events: Array = []
+var event_chains: Array = []  # 所有事件链
 
 # 当前待处理事件
 var pending_event: Dictionary = {}
 
+# 事件链状态记录
+var current_chain_progress: Dictionary = {}  # {chain_id: current_step}
+
 # 信号
 signal event_triggered(event: Dictionary)
 signal event_handled
+signal event_chain_completed(chain_id: String, reward: Dictionary)
 
 func _ready():
+	# 从JSON加载所有事件
+	load_events_from_json()
 	# 启动检查定时器
 	var timer = Timer.new()
 	timer.wait_time = CHECK_INTERVAL
 	timer.connect("timeout", Callable(self, "_check_trigger_event"))
 	add_child(timer)
 	timer.start()
-	print("[EventManager] 初始化完成，每%d分钟检查一次事件" % int(CHECK_INTERVAL / 60))
+	print("[EventManager] 初始化完成，加载了 %d 个事件，每%d分钟检查一次" % [all_events.size(), int(CHECK_INTERVAL / 60)])
+
+# 从外部JSON加载事件
+func load_events_from_json():
+	var file = FileAccess.open("res://data/events.json", FileAccess.READ)
+	if file:
+		var json_text = file.get_as_text()
+		file.close()
+		var json = JSON.new()
+		var parse_result = json.parse(json_text)
+		if parse_result == OK:
+			var data = json.data
+			all_events = data.get("all_events", [])
+			event_chains = data.get("event_chains", [])
+			print("[EventManager] 成功加载 %d 个事件，%d 个事件链" % [all_events.size(), event_chains.size()])
+		else:
+			push_error("Failed to parse events.json: " + json.get_error_message())
+	else:
+		push_error("Cannot open events.json")
+
+# 获取事件链
+func get_event_chain(chain_id: String) -> Dictionary:
+	for chain in event_chains:
+		if chain.id == chain_id:
+			return chain
+	return {}
+
+# 开始事件链
+func start_event_chain(chain_id: String):
+	var chain = get_event_chain(chain_id)
+	if chain.empty():
+		return
+	
+	current_chain_progress[chain_id] = 0
+	# 触发第一步
+	var first_step = chain.steps[0]
+	var event = find_event_by_id(first_step.event_id)
+	if not event.empty():
+		_show_event_dialog(event)
+		print("[EventManager] 开始事件链: %s" % chain_id)
+
+# 处理事件链下一步
+func progress_event_chain(chain_id: String, success: bool):
+	if not current_chain_progress.has(chain_id):
+		return
+	
+	var chain = get_event_chain(chain_id)
+	if chain.empty():
+		return
+	
+	var current_step_index = current_chain_progress[chain_id]
+	var current_step = chain.steps[current_step_index]
+	
+	if success and current_step.has("next_if_success") and current_step.next_if_success != null:
+		# 找下一步
+		var next_step_index = current_step_index + 1
+		if next_step_index < chain.steps.size():
+			current_chain_progress[chain_id] = next_step_index
+			var next_step = chain.steps[next_step_index]
+			var next_event = find_event_by_id(next_step.event_id)
+			if not next_event.empty():
+				_show_event_dialog(next_event)
+				print("[EventManager] 事件链 %s 进度到第%d步" % [chain_id, next_step_index + 1])
+		else:
+			# 完成了
+			if current_step.has("reward"):
+				_apply_chain_reward(chain_id, current_step.reward)
+			event_chain_completed.emit(chain_id, current_step.reward)
+			current_chain_progress.erase(chain_id)
+			print("[EventManager] 事件链 %s 完成" % chain_id)
+	elif not success:
+		# 失败，终止链
+		current_chain_progress.erase(chain_id)
+		print("[EventManager] 事件链 %s 失败终止" % chain_id)
+
+# 应用事件链奖励
+func _apply_chain_reward(chain_id: String, reward: Dictionary):
+	if reward.has("unlock_hidden_hero"):
+		for hero_id in reward.unlock_hidden_hero:
+			# 通知 HeroLibrary 解锁隐藏武将
+			print("[EventManager] 事件链完成解锁隐藏武将: %s" % hero_id)
+			HeroLibrary.unlock_hidden_hero(hero_id)
+	if reward.has("reward_progress"):
+		ProgressManager.add_progress(reward.reward_progress)
+	if reward.has("reward_fragments"):
+		# 奖励武将碎片，留给HeroLibrary处理
+		for frag_id in reward.reward_fragments:
+			var count = reward.get("reward_fragments_count", 3)
+			HeroLibrary.add_fragments(frag_id, count)
+	if reward.has("permanent_progress_bonus"):
+		ProgressManager.add_permanent_speed_bonus(reward.permanent_progress_bonus)
+	if reward.has("permanent_money_bonus"):
+		IdleManager.add_permanent_money_bonus(reward.permanent_money_bonus)
+	if reward.has("permanent_food_bonus"):
+		IdleManager.add_permanent_food_bonus(reward.permanent_food_bonus)
+	if reward.has("permanent_soldier_bonus"):
+		IdleManager.add_permanent_soldier_bonus(reward.permanent_soldier_bonus)
 
 # 每次检查是否触发事件
 func _check_trigger_event():
@@ -138,31 +148,31 @@ func _trigger_random_event():
 	# 从当前区域事件池随机选一个事件
 	var current_region = RegionManager.get_current_region()
 	var event_ids = current_region.event_ids
-	var all_events = []
+	var candidate_events = []
 	
-	# 先加基础事件
-	for e in BASE_EVENTS:
-		all_events.append(e)
-	# 再加区域事件（后续扩展）
+	# 将区域事件池中的每个事件加入候选列表
 	for eid in event_ids:
-		# TODO: 从区域事件库查找，现在先用基础事件
-		var found = _find_base_event(eid)
-		if found != null:
-			all_events.append(found)
+		var found = find_event_by_id(eid)
+		if not found.empty():
+			candidate_events.append(found)
 	
-	if all_events.empty():
+	# 如果候选列表空，使用所有事件随机
+	if candidate_events.empty():
+		candidate_events = all_events
+	
+	if candidate_events.empty():
 		return
 	
 	# 随机选一个
-	var idx = randi() % all_events.size()
-	var selected_event = all_events[idx]
+	var idx = randi() % candidate_events.size()
+	var selected_event = candidate_events[idx]
 	pending_event = selected_event
 	_show_event_dialog(selected_event)
 	print("[EventManager] 触发事件: %s" % selected_event.title)
 
-# 找到基础事件
-func _find_base_event(event_id: String) -> Dictionary:
-	for e in BASE_EVENTS:
+# 找到事件根据ID
+func find_event_by_id(event_id: String) -> Dictionary:
+	for e in all_events:
 		if e.id == event_id:
 			return e
 	return {}

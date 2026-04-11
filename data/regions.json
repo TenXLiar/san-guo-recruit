@@ -1,50 +1,321 @@
-
 [
   {
-    "id": "zhongyuan",
+    "id": "central_plain",
     "name": "中原",
-    "description": "中原大地，群雄逐鹿，是你霸业的起点。",
-    "unlock_condition": null,
+    "description": "中原腹地，兵家必争之地，基础难度开局。",
+    "unlock_condition": "start",
     "food_consumption_multiplier": 1,
     "soldier_consumption_multiplier": 1,
     "speed_multiplier": 1,
-    "event_ids": ["bandit_attack", "merchant_visit", "guandu_battle", "farmer_request", "recruit_volunteers"],
+    "event_ids": ["bandit_attack", "merchant_visit", "flood_disaster", "farmer_request", "recruit_volunteers"],
     "first_clear_reward": {
-      "type": "random_blue_hero",
-      "value": 1,
-      "description": "随机蓝色武将"
+      "type": "fragments",
+      "value": ["caocao", "xunyu"],
+      "count": 3,
+      "description": "曹操/荀彧碎片各3个"
     }
   },
   {
     "id": "jiangdong",
     "name": "江东",
-    "description": "江东水乡，河网纵横，粮草消耗增加。",
-    "unlock_condition": "zhongyuan",
+    "description": "水乡泽国，粮耗增加，人物风流。",
+    "unlock_condition": "central_plain",
     "food_consumption_multiplier": 1.2,
     "soldier_consumption_multiplier": 1,
     "speed_multiplier": 1,
-    "event_ids": ["water_pirate", "zhouyu_visit", "flood_disaster", "fish_market", "cross_river_battle"],
+    "event_frequency_multiplier": 1,
+    "event_ids": ["water_pirate", "zhouyu_visit", "fish_market", "cross_river_battle"],
     "first_clear_reward": {
       "type": "fragments",
-      "value": ["zhouyu", "luxun"],
-      "count": 5,
-      "description": "周瑜/陆逊碎片各5个"
+      "value": ["zhouyu", "lvmeng"],
+      "count": 3,
+      "description": "周瑜/吕蒙碎片各3个"
     }
   },
   {
     "id": "xiliang",
     "name": "西凉",
-    "description": "西凉荒漠，战马驰骋，兵力消耗增加，行军速度减慢。",
+    "description": "西北苦寒，马匹出产，兵力消耗增加，行军速度减慢。",
     "unlock_condition": "jiangdong",
     "food_consumption_multiplier": 1,
     "soldier_consumption_multiplier": 1.2,
     "speed_multiplier": 0.9,
-    "event_ids": ["horse_robber", "hun_invasion", "desert_storm", "horse_trade", "mazhong_battle"],
+    "event_ids": ["horse_robber", "desert_storm", "horse_trade", "mazhong_battle"],
     "first_clear_reward": {
       "type": "fragments",
-      "value": ["machao", "pangde"],
+      "value": ["mazchao", "xiahouyuan"],
       "count": 5,
-      "description": "马超/庞德碎片各5个"
+      "description": "马超/夏侯渊碎片各5个"
+    }
+  },
+  {
+    "id": "bashu",
+    "name": "巴蜀",
+    "description": "天府之国，山川险要，行军速度减慢，但粮草丰裕。",
+    "unlock_condition": "xiliang",
+    "food_consumption_multiplier": 0.8,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 0.8,
+    "event_ids": ["nanman_raid", "silk_trade", "block_road", "zhuge_treasure"],
+    "first_clear_reward": {
+      "type": "fragments",
+      "value": ["zhugeliang", "huangyueying"],
+      "count": 5,
+      "description": "诸葛亮/黄月英碎片各5个"
+    }
+  },
+  {
+    "id": "jingzhou",
+    "name": "荆州",
+    "description": "九省通衢，兵家必争之地，资源消耗增加但事件频率提高。",
+    "unlock_condition": "bashu",
+    "food_consumption_multiplier": 1.3,
+    "soldier_consumption_multiplier": 1.3,
+    "speed_multiplier": 1,
+    "event_frequency_multiplier": 1.2,
+    "event_ids": ["jingzhou_meeting", "liubiao_invite", "caocao_invasion", "red_cliff_battle"],
+    "first_clear_reward": {
+      "type": "random_purple_hero",
+      "value": 1,
+      "description": "随机紫色武将"
+    }
+  },
+  {
+    "id": "yongliang",
+    "name": "雍凉",
+    "description": "西北高原，民风剽悍，骑兵盛行，兵力消耗增加。",
+    "unlock_condition": "jingzhou",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1.4,
+    "speed_multiplier": 1,
+    "event_ids": ["horseman_raid", "qiang_border", "gold_mine", "desert_travel"],
+    "first_clear_reward": {
+      "type": "fragments",
+      "value": ["machao", "xiahouyuan"],
+      "count": 8,
+      "description": "马超/夏侯渊碎片各8个"
+    }
+  },
+  {
+    "id": "hebei",
+    "name": "河北",
+    "description": "河北之地，豪杰并起，产盐炼铁，资源产出提高。",
+    "unlock_condition": "yongliang",
+    "food_consumption_multiplier": 1.1,
+    "soldier_consumption_multiplier": 1.1,
+    "speed_multiplier": 1,
+    "resource_output_multiplier": 1.15,
+    "event_ids": ["yuan_shao_meeting", "white_horse_raid", "huangjin_remain", "iron_industry", "salt_trade"],
+    "first_clear_reward": {
+      "type": "fragments",
+      "value": ["yuanshao", "gongsunzan"],
+      "count": 8,
+      "description": "袁绍/公孙瓒碎片各8个"
+    }
+  },
+  {
+    "id": "guandong",
+    "name": "关东",
+    "description": "关东联军故乡，人才济济，解锁特殊人才事件概率增加。",
+    "unlock_condition": "hebei",
+    "food_consumption_multiplier": 1.1,
+    "soldier_consumption_multiplier": 1.1,
+    "speed_multiplier": 1.05,
+    "event_talent_chance_bonus": 0.15,
+    "event_ids": ["guandong_alliance", "talent_recruit", "horse_race", "city_trade", "rebellion_against_dongzhuo"],
+    "first_clear_reward": {
+      "type": "gained",
+      "value": {"money": 500, "food": 500, "soldier": 300},
+      "description": "获得钱粮兵各 500/500/300"
+    }
+  },
+  {
+    "id": "nanzhong",
+    "name": "南中",
+    "description": "南蛮之地，烟瘴密布，需要特定条件解锁。",
+    "unlock_condition": "collect_wu_hou_yueying",
+    "is_hidden": true,
+    "food_consumption_multiplier": 1.5,
+    "soldier_consumption_multiplier": 1.5,
+    "speed_multiplier": 0.7,
+    "event_ids": ["nanman_rebellion", "zhugeliang_capture_menghuo", "huoshou", "local_tribe", "silver_mine"],
+    "first_clear_reward": {
+      "type": "unlock_hidden_hero",
+      "value": ["hidden_nanman_mengzhuo"],
+      "description": "解锁隐藏武将 南蛮王孟获"
+    }
+  },
+  {
+    "id": "liaodong",
+    "name": "辽东",
+    "description": "苦寒辽东，公孙渊割据，需要集齐公孙瓒势力解锁。",
+    "unlock_condition": "collect_gongsunzan_faction",
+    "is_hidden": true,
+    "food_consumption_multiplier": 1.2,
+    "soldier_consumption_multiplier": 1.1,
+    "speed_multiplier": 0.9,
+    "event_ids": ["gongsunyuan_rebel", "nomad_raid", "fur_trade", "fishery", "liaodong_horse"],
+    "first_clear_reward": {
+      "type": "unlock_hidden_hero",
+      "value": ["hidden_gongsunzan_sp"],
+      "description": "解锁隐藏武将 SP白马公孙瓒"
+    }
+  },
+  {
+    "id": "youzhou",
+    "name": "幽州",
+    "description": "北边幽州，接近塞外，产马。",
+    "unlock_condition": "hebei",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "event_ids": ["horse_trade", "bianpin_rebel", "nomad_contact", "salt_trade", "grain_harvest"],
+    "first_clear_reward": {
+      "type": "gained",
+      "value": {"money": 200, "food": 200},
+      "description": "获得钱粮各 200"
+    }
+  },
+  {
+    "id": "bingzhou",
+    "name": "并州",
+    "description": "并凉之地，胡人杂居，",
+    "unlock_condition": "youzhou",
+    "food_consumption_multiplier": 1.1,
+    "soldier_consumption_multiplier": 1.1,
+    "speed_multiplier": 1.05,
+    "event_ids": ["huqi_raid", "horse_fair", "bingzhou_iron", "mixed_tribe", "frontier_patrol"],
+    "first_clear_reward": {
+      "type": "fragments_random_blue",
+      "value": 1,
+      "description": "获得一个蓝色武将碎片"
+    }
+  },
+  {
+    "id": "jizhou",
+    "name": "冀州",
+    "description": "冀州黄巾起，名士辈出。",
+    "unlock_condition": "bingzhou",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "talent_chance_bonus": 0.1,
+    "event_ids": ["huangjin_remain", "hanfu_government", "yuan_shao_rule", "grand_force", "literati_collection"],
+    "first_clear_reward": {
+      "type": "add_fragment_random_purple",
+      "value": 1,
+      "description": "获得一个紫色武将碎片"
+    }
+  },
+  {
+    "id": "yanzhou",
+    "name": "兖州",
+    "description": "曹操发家之地。",
+    "unlock_condition": "jizhou",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "money_bonus_permanent": 0.05,
+    "event_ids": ["caocao_arise", "dongzhuo_conflict", "qingzhou-yanzhou-battle", "talent_recruit", "farm_development"],
+    "first_clear_reward": {
+      "type": "permanent_money_bonus",
+      "value": 0.05,
+      "description": "永久金钱产出+5%"
+    }
+  },
+  {
+    "id": "xuzhou",
+    "name": "徐州",
+    "description": "东海之滨徐州，物产丰富。",
+    "unlock_condition": "yanzhou",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 0.9,
+    "speed_multiplier": 1,
+    "food_bonus_permanent": 0.05,
+    "event_ids": ["tao-qian-rule", "sea-salt", "fish-trade", "migration-resettlement", "conflict-with-yuan-shu"],
+    "first_clear_reward": {
+      "type": "permanent_food_bonus",
+      "value": 0.05,
+      "description": "永久粮草产出+5%"
+    }
+  },
+  {
+    "id": "qingzhou",
+    "name": "青州",
+    "description": "东临大海，黄巾遍地，",
+    "unlock_condition": "xuzhou",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "event_ids": ["huangjin-uprising", "sea-piracy", "salt-production", "coastal-fishing", "cao-wei-cleanup"],
+    "first_clear_reward": {
+      "type": "permanent_soldier_bonus",
+      "value": 0.03,
+      "description": "永久兵力产出+3%"
+    }
+  },
+  {
+    "id": "yuzhou",
+    "name": "豫州",
+    "description": "中原腹地，人口众多，",
+    "unlock_condition": "qingzhou",
+    "food_consumption_multiplier": 1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 1,
+    "money_bonus": 0.08,
+    "event_ids": ["yuan-shao-want", "cao-cao-vs-yuan-shao", "talent-gathering", "farm-tax", "local-gentry"],
+    "first_clear_reward": {
+      "type": "add_fragment_random_blue",
+      "value": 2,
+      "description": "获得两个蓝色武将碎片"
+    }
+  },
+  {
+    "id": "liangzhou",
+    "name": "凉州",
+    "description": "河西走廊，丝绸之路，",
+    "unlock_condition": "yuzhou",
+    "food_consumption_multiplier": 1.2,
+    "soldier_consumption_multiplier": 1.2,
+    "speed_multiplier": 0.95,
+    "money_bonus": 0.1,
+    "event_ids": ["silk-trade", "qiang-rebel", "desert-city", "horseman-raid", "douhuang"],
+    "first_clear_reward": {
+      "type": "gdp",
+      "value": 8,
+      "description": "获得聚贤令 8"
+    }
+  },
+  {
+    "id": "yizhou",
+    "name": "益州",
+    "description": "天府之国，高祖因之以成帝业。",
+    "unlock_condition": "liangzhou",
+    "food_consumption_multiplier": 0.9,
+    "soldier_consumption_multiplier": 0.9,
+    "speed_multiplier": 0.9,
+    "resource_output_multiplier": 1.2,
+    "event_ids": ["bashu-man", "tribute-trade", "salt-iron", "shunan-development", "zhuge-nan-zheng"],
+    "first_clear_reward": {
+      "type": "permanent_all_resource_bonus",
+      "value": 0.05,
+      "description": "所有资源产出+5%"
+    }
+  },
+  {
+    "id": "jiaozhou",
+    "name": "交州",
+    "description": "南方荒服，珍珠香料，",
+    "unlock_condition": "yizhou",
+    "food_consumption_multiplier": 1.1,
+    "soldier_consumption_multiplier": 1,
+    "speed_multiplier": 0.95,
+    "money_bonus": 0.12,
+    "event_ids": ["pearl-fishing", "tribe-contact", "foreign-trade", "local-specialty", "viceroy-establishment"],
+    "first_clear_reward": {
+      "type": "permanent_money_bonus",
+      "value": 0.08,
+      "description": "永久金钱产出+8%"
     }
   }
 ]

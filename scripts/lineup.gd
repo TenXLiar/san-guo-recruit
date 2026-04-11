@@ -3,6 +3,7 @@ extends Control
 # 九宫格大小
 const GRID_SIZE = 3
 const MAX_POSITION = GRID_SIZE * GRID_SIZE  # 3x3 = 9 个格子
+const MAX_BATTLE_SLOTS = 3  # 最多上阵人数限制
 
 # UI 节点引用
 var grid: GridContainer
@@ -11,7 +12,7 @@ var bond_details: Label
 var stats_label: Label
 
 # 数据
-var current_lineup: Array = []
+var current_lineup: Array = []  # 每个位置保存 {id, data, is_battle: bool} 格式
 var selected_hero_id: String = ""
 var current_selected_button: Button = null
 var current_selected_hero: Dictionary = {}
@@ -96,6 +97,36 @@ func add_background_mask():
 	# 移动到最底层
 	move_child(bg, 0)
 
+# 统计当前上阵人数
+func count_battle_heroes() -> int:
+	var count = 0
+	for slot in current_lineup:
+		if slot != null and slot.get("is_battle", false):
+			count += 1
+	return count
+
+# 切换格子武将状态（上阵 ↔ 镇守）
+func _toggle_cell_state(index: int):
+	var slot = current_lineup[index]
+	if slot == null:
+		return
+	
+	var current_is_battle = slot.get("is_battle", false)
+	var new_is_battle = !current_is_battle
+	
+	# 如果要切换到上阵，检查是否已满3人
+	if new_is_battle:
+		var current_count = count_battle_heroes()
+		if current_count >= MAX_BATTLE_SLOTS:
+			print("[Lineup] 上阵人数已满（最多%d人），无法切换" % MAX_BATTLE_SLOTS)
+			return
+	
+	# 执行切换
+	slot["is_battle"] = new_is_battle
+	_update_cell_visual(index)
+	update_stats()
+	print("格子%d 切换: %s → %s" % [index, ["镇守", "上阵"][int(current_is_battle)], ["镇守", "上阵"][int(new_is_battle)]])
+
 func create_grid():
 	if not grid:
 		return
@@ -118,6 +149,7 @@ func create_grid():
 	for i in range(MAX_POSITION):
 		var container = VBoxContainer.new()
 		container.custom_minimum_size = Vector2(94, 94)
+		container.spacing = 2
 		
 		# 格子背景样式（同前）
 		var style = StyleBoxFlat.new()
@@ -132,24 +164,25 @@ func create_grid():
 		# 头像区域（图片）
 		var tex_rect = TextureRect.new()
 		tex_rect.name = "Portrait"
-		tex_rect.custom_minimum_size = Vector2(80, 80)
+		tex_rect.custom_minimum_size = Vector2(64, 64)
 		tex_rect.expand = true
 		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex_rect.texture = null
 		container.add_child(tex_rect)
 		
-		# 数字标签（可选，调试用）
-		var label = Label.new()
-		label.text = str(i)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_color_override("font_color", Color(1, 1, 1))
-		container.add_child(label)
+		# 状态标签（显示 上阵/镇守）
+		var state_label = Label.new()
+		state_label.name = "StateLabel"
+		state_label.text = "空位"
+		state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		state_label.add_theme_font_size_override("font_size", 10)
+		container.add_child(state_label)
 		
 		# 透明按钮（关键修改：填充整个容器）
 		var cell_btn = Button.new()
 		cell_btn.name = "Cell_%d" % i
 		cell_btn.flat = false
-		cell_btn.modulate = Color(1, 1, 1, 0.5)
+		cell_btn.modulate = Color(1, 1, 1, 0.4)
 		cell_btn.text = str(i)
 		# 锚点设置：填充整个容器
 		cell_btn.anchor_left = 0.0
@@ -165,6 +198,7 @@ func create_grid():
 		
 		container.set_meta("index", i)
 		container.set_meta("button", cell_btn)
+		container.set_meta("state_label", state_label)
 		
 		grid.add_child(container)
 	
@@ -217,21 +251,64 @@ func load_saved_lineup():
 	var saved = SaveManager.load_lineup()
 	if saved and saved.size() == MAX_POSITION:
 		current_lineup = saved
+		# 兼容旧存档（直接存data不是slot）
 		for i in range(MAX_POSITION):
+			if current_lineup[i] != null and not current_lineup[i].has("data"):
+				# 转换旧格式到新格式，默认镇守
+				current_lineup[i] = {
+					"id": current_lineup[i].id,
+					"data": current_lineup[i],
+					"is_battle": false
+				}
 			_update_cell_visual(i)
 		# 加载后更新IdleManager镇守属性
-		var total_attack: float = 0.0
-		var total_defense: float = 0.0
-		for h in current_lineup:
-			if h != null:
-				total_attack += float(h.get("attack", 0))
-				total_defense += float(h.get("defense", 0))
-		IdleManager.update_guard_stats(total_attack, total_defense)
-		print("已加载保存的阵容，更新镇守属性: 勇武 %.1f 智略 %.1f" % [total_attack, total_defense])
+		var total_guard_attack: float = 0.0
+		var total_guard_defense: float = 0.0
+		for slot in current_lineup:
+			if slot != null:
+				var hero_data = slot.get("data", {})
+				var is_battle = slot.get("is_battle", false)
+				if not is_battle:
+					total_guard_attack += float(hero_data.get("attack", 0))
+					total_guard_defense += float(hero_data.get("defense", 0))
+		IdleManager.update_guard_stats(total_guard_attack, total_guard_defense)
+		print("已加载保存的阵容，更新镇守属性: 勇武 %.1f 智略 %.1f" % [total_guard_attack, total_guard_defense])
 	else:
 		# 空阵容，属性清零
 		IdleManager.update_guard_stats(0, 0)
 	print("已加载保存的阵容")
+
+# 获取上阵总属性（供ProgressManager使用）
+func get_total_progress_stats() -> Dictionary:
+	var total_bravery: float = 0.0
+	var total_wisdom: float = 0.0
+	for slot in current_lineup:
+		if slot != null:
+			var hero_data = slot.get("data", {})
+			var is_battle = slot.get("is_battle", false)
+			if is_battle:
+				total_bravery += float(hero_data.get("attack", 0))
+				total_wisdom += float(hero_data.get("defense", 0))
+	return {
+		"total_bravery": total_bravery,
+		"total_wisdom": total_wisdom
+	}
+
+# 计算所有镇守总属性（已在update_stats中调用，这里提供给外部）
+func calculate_total_stats() -> Dictionary:
+	var total_guard_bravery: float = 0.0
+	var total_guard_wisdom: float = 0.0
+	for slot in current_lineup:
+		if slot != null:
+			var hero_data = slot.get("data", {})
+			var is_battle = slot.get("is_battle", false)
+			if not is_battle:
+				total_guard_bravery += float(hero_data.get("attack", 0))
+				total_guard_wisdom += float(hero_data.get("defense", 0))
+	return {
+		"total_guard_bravery": total_guard_bravery,
+		"total_guard_wisdom": total_guard_wisdom
+	}
 
 func save_lineup():
 	# 保存到SaveManager
@@ -255,17 +332,34 @@ func update_bond_info():
 
 func update_stats():
 	if stats_label:
-		var hero_count: int = 0
-		var total_attack: float = 0.0
-		var total_defense: float = 0.0
+		var battle_count: int = 0
+		var guard_count: int = 0
+		var total_battle_attack: float = 0.0  # 上阵总勇武（攻城进度）
+		var total_battle_defense: float = 0.0  # 上阵总智略（攻城进度）
+		var total_guard_attack: float = 0.0  # 镇守总勇武（产兵）
+		var total_guard_defense: float = 0.0  # 镇守总智略（产钱粮）
 		
-		for h in current_lineup:
-			if h != null:
-				hero_count += 1
-				total_attack += float(h.get("attack", 0))
-				total_defense += float(h.get("defense", 0))
+		for slot in current_lineup:
+			if slot != null:
+				var hero_data = slot.get("data", {})
+				var is_battle = slot.get("is_battle", false)
+				if is_battle:
+					battle_count += 1
+					total_battle_attack += float(hero_data.get("attack", 0))
+					total_battle_defense += float(hero_data.get("defense", 0))
+				else:
+					guard_count += 1
+					total_guard_attack += float(hero_data.get("attack", 0))
+					total_guard_defense += float(hero_data.get("defense", 0))
 		
-		stats_label.text = "上阵: %d/%d\n总勇武: %.1f  |  总智略: %.1f" % [hero_count, MAX_POSITION, total_attack, total_defense]
+		stats_label.text = "上阵: %d/%d\n总勇武: %.1f  |  总智略: %.1f\n镇守: %d人\n产出加成: 兵 %.1f/秒  钱 %.1f/秒 粮 %.1f/秒" % [
+			battle_count, MAX_BATTLE_SLOTS, 
+			total_battle_attack, total_battle_defense,
+			guard_count,
+			total_guard_attack * 0.1,
+			total_guard_defense * 0.05,
+			total_guard_defense * 0.05
+		]
 
 # 选中左侧武将
 func _on_hero_selected(hero_data: Dictionary, button: Button):
@@ -285,22 +379,27 @@ func _on_hero_selected(hero_data: Dictionary, button: Button):
 func _on_cell_pressed(index: int):
 	print("格子 ", index, " 被点击")
 	if selected_hero_id == "":
-		# 没有选中武将，如果格子有武将，移除它
+		# 没有选中武将，如果格子有武将，切换状态（上阵/镇守）
 		if current_lineup[index] != null:
-			current_lineup[index] = null
-			_update_cell_visual(index)
-			update_bond_info()
-			update_stats()
-			print("移除了格子 ", index)
+			_toggle_cell_state(index)
 		return
 	
 	# 实际上，_on_hero_selected 已经拿到了完整的 hero_data，我们已经保存了
 	if current_selected_hero != {}:
-		current_lineup[index] = current_selected_hero
+		# 如果要放置为上阵，检查是否已经满了3个上阵
+		# 默认新放置都是镇守，用户可以点击切换
+		var battle_count = count_battle_heroes()
+		# 放置数据结构包含状态
+		var new_slot = {
+			"id": current_selected_hero.id,
+			"data": current_selected_hero,
+			"is_battle": false  # 默认镇守
+		}
+		current_lineup[index] = new_slot
 		_update_cell_visual(index)
 		update_bond_info()
 		update_stats()
-		print("放置武将 " + current_selected_hero.name + " 到格子 " + str(index))
+		print("放置武将 " + current_selected_hero.name + " 到格子 " + str(index) + " 状态：镇守")
 
 # 监听ESC快捷键返回
 func _input(event: InputEvent) -> void:
@@ -310,18 +409,21 @@ func _input(event: InputEvent) -> void:
 
 func _on_save_pressed():
 	save_lineup()
-	# 更新IdleManager镇守属性，影响钱粮兵产出
-	var total_attack: float = 0.0
-	var total_defense: float = 0.0
-	for h in current_lineup:
-		if h != null:
-			total_attack += float(h.get("attack", 0))
-			total_defense += float(h.get("defense", 0))
+	# 更新IdleManager镇守属性，影响钱粮兵产出（只有镇守武将贡献）
+	var total_guard_attack: float = 0.0
+	var total_guard_defense: float = 0.0
+	for slot in current_lineup:
+		if slot != null:
+			var hero_data = slot.get("data", {})
+			var is_battle = slot.get("is_battle", false)
+			if not is_battle:
+				total_guard_attack += float(hero_data.get("attack", 0))
+				total_guard_defense += float(hero_data.get("defense", 0))
 	# 更新到IdleManager，勇武对应attack，智略对应defense
-	IdleManager.update_guard_stats(total_attack, total_defense)
+	IdleManager.update_guard_stats(total_guard_attack, total_guard_defense)
 	lineup_saved.emit()
 	# 显示保存提示
-	print("阵容已保存，更新镇守属性: 勇武 %.1f 智略 %.1f" % [total_attack, total_defense])
+	print("阵容已保存，更新镇守属性: 勇武 %.1f 智略 %.1f" % [total_guard_attack, total_guard_defense])
 
 func _on_clear_pressed():
 	for i in range(MAX_POSITION):
@@ -347,9 +449,12 @@ func _update_cell_visual(index: int):
 	var container = grid.get_child(index)
 	if container:
 		var tex_rect = container.get_node("Portrait") as TextureRect
-		var hero = current_lineup[index]
+		var state_label = container.get_meta("state_label", null) as Label
+		var slot = current_lineup[index]
 		
-		if hero is Dictionary and hero.has("id"):
+		if slot != null:
+			var hero = slot.get("data", {})
+			var is_battle = slot.get("is_battle", false)
 			# 根据id加载头像纹理
 			var image_path = "res://assets/images/%s.png" % hero.id
 			var tex = load(image_path)
@@ -365,6 +470,13 @@ func _update_cell_visual(index: int):
 					Color(1, 0.5, 0)
 				]
 				tex_rect.modulate = rarity_colors[hero.rarity-1]
+				# 更新状态标签颜色和文字
+				if state_label:
+					state_label.text = ["镇守", "上阵"][int(is_battle)]
+					if is_battle:
+						state_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))  # 上阵红色
+					else:
+						state_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))  # 镇守绿色
 			else:
 				# 加载失败，显示一个占位色块
 				tex_rect.texture = null
@@ -374,5 +486,10 @@ func _update_cell_visual(index: int):
 				if placeholder_style is StyleBoxFlat:
 					placeholder_style.bg_color = Color(0.5, 0.5, 0.5)
 				push_error("无法加载头像: " + image_path)
+				if state_label:
+					state_label.text = "缺失"
 		else:
 			tex_rect.texture = null
+			if state_label:
+				state_label.text = "空位"
+				state_label.add_theme_color_override("font_color", Color(1, 1, 1))
