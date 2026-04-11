@@ -55,58 +55,25 @@ var STRATEGIES = [
 ]
 
 # 游戏数据
-var current_gdp: float = 1000.0
+var current_gdp: float
 var current_prestige: int = 0
 var current_rank: int = 1000
 var owned_heroes: Dictionary = {}
 var hero_fragments: Dictionary = {}
 
-# 🎮 挂机系统配置
-var gdp_per_second: float = 1.0  # 每秒产出1点国运点
-var offline_time_limit: int = 8 * 3600  # 最多累计8小时离线收益
-var last_online_time: int = 0  # 上次在线时间
-var offline_earned: float = 0  # 离线收益
+# 🎮 挂机系统配置（从 game_config 读取）
+var gdp_per_second: float
+var offline_time_limit: int
+var last_online_time: int = 0
+var offline_earned: float = 0
 
-# 武将配置（按稀有度分类）
-var WHITE_HEROES: Array = [
-	{"id": "wei_yujin", "name": "于禁", "rarity": 1, "faction": "魏", "skill": "毅重", "attack": 75, "defense": 85},
-	{"id": "shu_weiyan", "name": "魏延", "rarity": 1, "faction": "蜀", "skill": "狂骨", "attack": 82, "defense": 76},
-	{"id": "wu_huanggai", "name": "黄盖", "rarity": 1, "faction": "吴", "skill": "苦肉", "attack": 78, "defense": 80},
-	{"id": "qun_dongzhuo", "name": "董卓", "rarity": 1, "faction": "群", "skill": "酒池肉林", "attack": 80, "defense": 75}
-]
-
-var GREEN_HEROES: Array = [
-	{"id": "wei_caoren", "name": "曹仁", "rarity": 2, "faction": "魏", "skill": "据守", "attack": 78, "defense": 92},
-	{"id": "shu_huangzhong", "name": "黄忠", "rarity": 2, "faction": "蜀", "skill": "百步穿杨", "attack": 86, "defense": 75},
-	{"id": "wu_sunquan", "name": "孙权", "rarity": 2, "faction": "吴", "skill": "制衡", "attack": 82, "defense": 88},
-	{"id": "qun_zhangjiao", "name": "张角", "rarity": 2, "faction": "群", "skill": "黄天太平", "attack": 80, "defense": 78}
-]
-
-var BLUE_HEROES: Array = [
-	{"id": "wei_xiahoudun", "name": "夏侯惇", "rarity": 3, "faction": "魏", "skill": "刚烈", "attack": 88, "defense": 90},
-	{"id": "wei_zhangliao", "name": "张辽", "rarity": 3, "faction": "魏", "skill": "突袭", "attack": 92, "defense": 86},
-	{"id": "shu_zhaoyun", "name": "赵云", "rarity": 3, "faction": "蜀", "skill": "龙胆", "attack": 93, "defense": 89},
-	{"id": "wu_lvmeng", "name": "吕蒙", "rarity": 3, "faction": "吴", "skill": "白衣渡江", "attack": 87, "defense": 85},
-	{"id": "qun_yuanshao", "name": "袁绍", "rarity": 3, "faction": "群", "skill": "乱击", "attack": 85, "defense": 83}
-]
-
-var PURPLE_HEROES: Array = [
-	{"id": "wei_caocao", "name": "曹操", "rarity": 4, "faction": "魏", "skill": "乱世奸雄", "attack": 95, "defense": 85},
-	{"id": "shu_liubei", "name": "刘备", "rarity": 4, "faction": "蜀", "skill": "仁德", "attack": 80, "defense": 95},
-	{"id": "shu_zhangfei", "name": "张飞", "rarity": 4, "faction": "蜀", "skill": "咆哮", "attack": 97, "defense": 80},
-	{"id": "wu_zhouyu", "name": "周瑜", "rarity": 4, "faction": "吴", "skill": "火烧赤壁", "attack": 93, "defense": 82},
-	{"id": "qun_diaochan", "name": "貂蝉", "rarity": 4, "faction": "群", "skill": "离间", "attack": 85, "defense": 70}
-]
-
-var ORANGE_HEROES: Array = [
-	{"id": "shu_guanyu", "name": "关羽", "rarity": 5, "faction": "蜀", "skill": "武圣", "attack": 98, "defense": 88},
-	{"id": "qun_lvbu", "name": "吕布", "rarity": 5, "faction": "群", "skill": "无双", "attack": 100, "defense": 75},
-	{"id": "wei_xiahouyuan", "name": "夏侯渊", "rarity": 5, "faction": "魏", "skill": "神速", "attack": 96, "defense": 82},
-	{"id": "wu_ganing", "name": "甘宁", "rarity": 5, "faction": "吴", "skill": "锦帆贼", "attack": 94, "defense": 85}
-]
-
+# 稀有度配置（常量不变）
 var RARITY_NAMES: Array = ["白", "绿", "蓝", "紫", "橙"]
 var RARITY_COLORS: Array = [Color(1,1,1), Color(0,1,0), Color(0,0.5,1), Color(0.8,0,0.8), Color(1,0.5,0)]
+
+# 从 ConfigLoader 按稀有度分组获取武将
+func _get_heroes_by_rarity(rarity: int) -> Array:
+	return ConfigLoader.get_heroes_by_rarity(rarity)
 
 # 当前页面
 var current_page: String = ""
@@ -120,10 +87,16 @@ var library_scene: PackedScene = preload("res://scenes/library.tscn")
 var battle_scene: PackedScene = preload("res://scenes/battle.tscn")
 
 func _ready():
+	# 从配置读取基础设置
+	current_gdp = ConfigLoader.get_base_config("initial_gdp", 1000.0)
+	gdp_per_second = ConfigLoader.get_base_config("gdp_per_second", 1.0)
+	var offline_hours = ConfigLoader.get_base_config("offline_limit_hours", 8)
+	offline_time_limit = offline_hours * 3600
+	
 	# 从存档加载数据
 	if SaveManager.has_save():
 		var loaded = SaveManager.load_game()
-		current_gdp = loaded.get("current_gdp", 1000.0)
+		current_gdp = loaded.get("current_gdp", current_gdp)
 		current_prestige = loaded.get("current_prestige", 0)
 		current_rank = loaded.get("current_rank", 1000)
 		owned_heroes = loaded.get("owned_heroes", {})
@@ -133,7 +106,7 @@ func _ready():
 	else:
 		# 初始化离线时间
 		last_online_time = Time.get_unix_time_from_system()
-		print("[MainUI] 无存档，使用初始数据")
+		print("[MainUI] 无存档，使用初始数据 (from ConfigLoader)")
 	
 	# 动态加载背景纹理（安全加载，避免资源缺失报错）
 	if background_tex:
@@ -361,38 +334,51 @@ func _on_back_to_home():
 func _do_recruit():
 	print("抽卡触发！")
 	
-	if current_gdp < 100:
+	# 从配置读取抽卡消耗
+	var cost_single = ConfigLoader.get_recruit_config("cost_single", 100)
+	
+	if current_gdp < cost_single:
 		if current_ui != null and current_page == "RecruitButton":
 			current_ui.show_gdp_not_enough()
 		return
 	
 	# 扣除国运点
-	current_gdp -= 100
+	current_gdp -= cost_single
 	update_resource_display()
 	
-	# 随机稀有度
+	# 从配置读取概率，随机稀有度
+	var rate_white = ConfigLoader.get_recruit_config("rate_white", 52)
+	var rate_green = ConfigLoader.get_recruit_config("rate_green", 27)
+	var rate_blue = ConfigLoader.get_recruit_config("rate_blue", 7)
+	var rate_purple = ConfigLoader.get_recruit_config("rate_purple", 2)
+	# 橙将概率从配置读，累计阈值
+	var threshold_white = rate_white
+	var threshold_green = threshold_white + rate_green
+	var threshold_blue = threshold_green + rate_blue
+	var threshold_purple = threshold_blue + rate_purple
+	
 	var roll = randi() % 100
 	var hero_list = []
 	var rarity = 1
 	
-	if roll < 1:
-		hero_list = ORANGE_HEROES
+	if roll < (100 - threshold_purple):
+		hero_list = _get_heroes_by_rarity(5)
 		rarity = 5
 		print("抽到橙将！")
-	elif roll < 3:
-		hero_list = PURPLE_HEROES
+	elif roll < (100 - threshold_blue):
+		hero_list = _get_heroes_by_rarity(4)
 		rarity = 4
 		print("抽到紫将！")
-	elif roll < 10:
-		hero_list = BLUE_HEROES
+	elif roll < (100 - threshold_green):
+		hero_list = _get_heroes_by_rarity(3)
 		rarity = 3
 		print("抽到蓝将！")
-	elif roll < 30:
-		hero_list = GREEN_HEROES
+	elif roll < (100 - threshold_white):
+		hero_list = _get_heroes_by_rarity(2)
 		rarity = 2
 		print("抽到绿将！")
 	else:
-		hero_list = WHITE_HEROES
+		hero_list = _get_heroes_by_rarity(1)
 		rarity = 1
 		print("抽到白将！")
 	
@@ -428,17 +414,31 @@ func _do_recruit():
 func _do_recruit_ten():
 	print("十连抽触发！")
 	
-	if current_gdp < 900:
+	# 从配置读取十连消耗（默认900，九折优惠）
+	var cost_ten = ConfigLoader.get_recruit_config("cost_ten", 900)
+	
+	if current_gdp < cost_ten:
 		if current_ui != null and current_page == "RecruitButton":
-			current_ui.show_gdp_not_enough(900)
+			current_ui.show_gdp_not_enough(cost_ten)
 		return
 	
-	# 扣除国运点（十连九折优惠）
-	current_gdp -= 900
+	# 扣除国运点（十连九折优惠来自配置）
+	current_gdp -= cost_ten
 	update_resource_display()
 	
 	# 抽取9个武将，填满九宫格
 	var results: Array[Dictionary] = []
+	
+	# 从配置读取概率
+	var rate_white = ConfigLoader.get_recruit_config("rate_white", 52)
+	var rate_green = ConfigLoader.get_recruit_config("rate_green", 27)
+	var rate_blue = ConfigLoader.get_recruit_config("rate_blue", 7)
+	var rate_purple = ConfigLoader.get_recruit_config("rate_purple", 2)
+	# 橙将概率从配置读，累计阈值
+	var threshold_white = rate_white
+	var threshold_green = threshold_white + rate_green
+	var threshold_blue = threshold_green + rate_blue
+	var threshold_purple = threshold_blue + rate_purple
 	
 	for i in range(9):
 		# 随机稀有度
@@ -446,24 +446,24 @@ func _do_recruit_ten():
 		var hero_list = []
 		var rarity = 1
 		
-		if roll < 1:
-			hero_list = ORANGE_HEROES
+		if roll < (100 - threshold_purple):
+			hero_list = _get_heroes_by_rarity(5)
 			rarity = 5
 			print("抽到橙将！")
-		elif roll < 3:
-			hero_list = PURPLE_HEROES
+		elif roll < (100 - threshold_blue):
+			hero_list = _get_heroes_by_rarity(4)
 			rarity = 4
 			print("抽到紫将！")
-		elif roll < 10:
-			hero_list = BLUE_HEROES
+		elif roll < (100 - threshold_green):
+			hero_list = _get_heroes_by_rarity(3)
 			rarity = 3
 			print("抽到蓝将！")
-		elif roll < 30:
-			hero_list = GREEN_HEROES
+		elif roll < (100 - threshold_white):
+			hero_list = _get_heroes_by_rarity(2)
 			rarity = 2
 			print("抽到绿将！")
 		else:
-			hero_list = WHITE_HEROES
+			hero_list = _get_heroes_by_rarity(1)
 			rarity = 1
 			print("抽到白将！")
 		

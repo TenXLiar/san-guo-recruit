@@ -1,0 +1,15 @@
+category,key,value,type,description
+base,initial_gdp,1000,float,初始国运点
+base,gdp_per_second,1,float,每秒国运产出
+base,offline_limit_hours,8,int,离线收益最大时长（小时）
+base,max_results,1000,int,导出最大数量
+recruit,cost_single,100,int,单抽消耗
+recruit,cost_ten,900,int,十连消耗
+recruit,rate_white,52,float,白将概率（百分比）
+recruit,rate_green,27,float,绿将概率
+recruit,rate_blue,7,float,蓝将概率
+recruit,rate_purple,2,float,紫将概率
+recruit,rate_orange,1,float,橙将概率
+recruit,guarantee_orange_ten,true,bool,十连是否必出稀有
+gamedisplay,ui_scale,1,float,UI缩放
+gamedisplay,show_gm_buttons,true,bool,显示GM按钮
