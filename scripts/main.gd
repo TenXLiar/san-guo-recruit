@@ -140,8 +140,16 @@ func _ready():
 		var tex = load("res://assets/images/main_background.png")
 		if tex:
 			background_tex.texture = tex
+			background_tex.modulate = Color(1, 1, 1)
 		else:
 			print("[MainUI] 背景图片未找到: res://assets/images/main_background.png")
+			# 如果找不到背景，就把背景设为透明，不要显示红色底板
+			background_tex.texture = null
+			background_tex.modulate = Color(1, 1, 1, 0)
+	
+	# 确保MainUI背景不是红色，使用深色主题背景
+	self.modulate = Color(1, 1, 1)
+	self.bg_color = Color(0.15, 0.15, 0.15, 1)
 	
 	# 动态加载按钮背景纹理（安全加载）
 	var button_bg = load("res://assets/images/button_bg.png")
