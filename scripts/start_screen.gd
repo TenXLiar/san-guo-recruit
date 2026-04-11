@@ -19,7 +19,7 @@ func _ready():
 
 func _on_new_game():
 	# 开始新游戏
-	save_manager.new_game()
+	SaveManager.new_game()
 	# 切换到主界面
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
